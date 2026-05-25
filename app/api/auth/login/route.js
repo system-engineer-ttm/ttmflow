@@ -14,17 +14,25 @@ export async function POST(request) {
   /* ── Real DB path (Supabase configured) ── */
   if (hasSupabase) {
     const db = createServiceClient();
-    const { data: user } = await db
+    const { data: user, error: dbErr } = await db
       .from("users")
       .select("*")
       .eq("username", uname)
       .eq("is_active", true)
       .maybeSingle();
 
-    if (!user) return NextResponse.json({ error: ERR }, { status: 401 });
+    if (dbErr) {
+      console.error("[login] Supabase error:", dbErr.message);
+      return NextResponse.json({ error: "DB error: " + dbErr.message }, { status: 500 });
+    }
+    if (!user) {
+      console.error("[login] User not found:", uname);
+      return NextResponse.json({ error: ERR + " (not found)" }, { status: 401 });
+    }
 
     const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) return NextResponse.json({ error: ERR }, { status: 401 });
+    console.log("[login] bcrypt valid:", valid, "hash prefix:", user.password_hash?.slice(0, 7));
+    if (!valid) return NextResponse.json({ error: ERR + " (pw)" }, { status: 401 });
 
     const token = await signToken({ id: user.id, username: user.username, role: user.role });
     const userData = dbRowToUser(user);
