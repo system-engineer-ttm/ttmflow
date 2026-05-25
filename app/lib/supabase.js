@@ -9,8 +9,16 @@ export const hasSupabase = !!(
 /** Service-role client — created lazily (server/API routes only, bypasses RLS) */
 export function createServiceClient() {
   if (!hasSupabase) throw new Error("Supabase not configured");
-  // Trim whitespace and trailing slash that may be accidentally pasted
-  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
+  // Trim whitespace and trailing slash / path that may be accidentally pasted
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "")
+    .trim()
+    .replace(/\/rest\/v1\/?$/, "")   // strip /rest/v1 if copied from Data API page
+    .replace(/\/+$/, "");             // strip any trailing slashes
   const key = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim();
-  return createClient(url, key);
+  return createClient(url, key, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 }
