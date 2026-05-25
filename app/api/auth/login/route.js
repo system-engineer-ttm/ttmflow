@@ -21,18 +21,11 @@ export async function POST(request) {
       .eq("is_active", true)
       .maybeSingle();
 
-    if (dbErr) {
-      console.error("[login] Supabase error:", dbErr.message);
-      return NextResponse.json({ error: "DB error: " + dbErr.message }, { status: 500 });
-    }
-    if (!user) {
-      console.error("[login] User not found:", uname);
-      return NextResponse.json({ error: ERR + " (not found)" }, { status: 401 });
-    }
+    if (dbErr) return NextResponse.json({ error: ERR }, { status: 401 });
+    if (!user) return NextResponse.json({ error: ERR }, { status: 401 });
 
     const valid = await bcrypt.compare(password, user.password_hash);
-    console.log("[login] bcrypt valid:", valid, "hash prefix:", user.password_hash?.slice(0, 7));
-    if (!valid) return NextResponse.json({ error: ERR + " (pw)" }, { status: 401 });
+    if (!valid) return NextResponse.json({ error: ERR }, { status: 401 });
 
     const token = await signToken({ id: user.id, username: user.username, role: user.role });
     const userData = dbRowToUser(user);
