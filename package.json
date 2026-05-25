@@ -1,0 +1,24 @@
+{
+  "name": "ttmflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TTMFlow — ISO 9001 internal request management for Talk to Me Co., Ltd.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.3",
+    "next": "14.2.13",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.13"
+  }
+}

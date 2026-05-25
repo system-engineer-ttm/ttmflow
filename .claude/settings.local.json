@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(tar -xzf design.tar.gz)",
+      "Bash(mkdir -p public/assets public/uploads app/lib app/components)",
+      "Bash(cp .design_drop/ttmflow/project/assets/logo.jpg public/assets/logo.jpg)",
+      "Bash(cp .design_drop/ttmflow/project/uploads/logo.jpg public/uploads/logo.jpg)",
+      "Bash(cp .design_drop/ttmflow/project/uploads/*.pdf public/uploads/)",
+      "Bash(cp .design_drop/ttmflow/project/uploads/*.png public/uploads/)",
+      "Bash(npm install *)",
+      "Bash(npm view *)",
+      "Bash(python -c \"import json,sys; v=json.load\\(sys.stdin\\); print\\('\\\\n'.join\\([x for x in v if x.startswith\\('14.2.'\\) and 'canary' not in x][-10:]\\)\\)\")",
+      "Bash(npm run *)",
+      "Bash(curl -sf -o /dev/null http://localhost:3000)",
+      "Bash(curl -s -o /tmp/ttmflow_index.html -w \"HTTP %{http_code} / %{size_download} bytes\\\\n\" http://localhost:3000)",
+      "Read(//tmp/**)",
+      "Bash(taskkill /F /FI \"WINDOWTITLE eq node*\")",
+      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(echo \"PID=$!\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":3000\")",
+      "Bash(taskkill /PID 6400 /F)",
+      "PowerShell(Stop-Process -Id 6400 -Force -ErrorAction SilentlyContinue)",
+      "Bash(mkdir -p \"C:/Users/TTM-NB-7/Documents/TTMFlow/app/api/users/[id]\" && echo \"ok\")"
+    ]
+  }
+}
