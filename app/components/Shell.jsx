@@ -3,9 +3,11 @@ import React from "react";
 import Image from "next/image";
 import { Icon } from "./Icon";
 import { cls, Avatar } from "./Ui";
-import { REQUESTS, USERS, FLOW_INSTANCES, NOTIFICATIONS, ROLE_PERMISSIONS } from "../lib/data";
+import { ROLE_PERMISSIONS } from "../lib/data";
+import { useAppData } from "../lib/AppDataContext";
 
 export function Sidebar({ lang, route, setRoute, role, t, onLogout }) {
+  const { REQUESTS, FLOW_INSTANCES } = useAppData();
   const reqs = REQUESTS;
   const pendingForMe = reqs.filter(r => r.status === "pending").length;
   const myDraft = 2;
@@ -175,6 +177,7 @@ export function Topbar({ lang, setLang, role, setRole, route, setRoute, t, curre
 }
 
 function NotifPopover({ lang, onClose, onJump }) {
+  const { NOTIFICATIONS } = useAppData();
   const items = NOTIFICATIONS.slice(0, 5);
   return (
     <>

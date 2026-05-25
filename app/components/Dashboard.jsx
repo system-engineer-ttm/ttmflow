@@ -1,17 +1,15 @@
 "use client";
 import { Icon } from "./Icon";
 import { cls, Button, Card, SectionTitle, Spark, StatusPill } from "./Ui";
-import { REQUESTS, USERS, FORM_TEMPLATES } from "../lib/data";
+import { useAppData } from "../lib/AppDataContext";
 
 export function Dashboard({ lang, role, t, setRoute, openRequest }) {
-  const reqs = REQUESTS;
-  const users = USERS;
-  const tmpl = FORM_TEMPLATES;
+  const { REQUESTS: reqs, USERS: users, FORM_TEMPLATES: tmpl } = useAppData();
 
   const currentUser = {
     requester: users.REQ003, approver: users.APP001, it: users.IT001,
     admin: users.ADM001, auditor: users.AUD001,
-  }[role];
+  }[role] || Object.values(users)[0] || { nameTh: "User", nameEn: "User" };
 
   const cards = {
     requester: [
@@ -79,8 +77,8 @@ export function Dashboard({ lang, role, t, setRoute, openRequest }) {
           />
           <div className="ttm-recent-list">
             {reqs.slice(0, 6).map(r => {
-              const u = users[r.requester];
-              const tmplObj = tmpl.find(x => x.code === r.template);
+              const u = users[r.requester] || { nameTh: r.requester, nameEn: r.requester };
+              const tmplObj = tmpl.find(x => x.code === r.template) || { icon: "file-text", color: "blue" };
               return (
                 <button key={r.id} className="ttm-recent-row" onClick={() => openRequest(r.id)}>
                   <div className={cls("ttm-recent-icon", `is-${tmplObj.color}`)}>

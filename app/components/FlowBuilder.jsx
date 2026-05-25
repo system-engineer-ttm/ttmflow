@@ -2,7 +2,7 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { cls, Button, Card, Check, Field, IconButton, Input, Select, Stepper, Textarea } from "./Ui";
-import { FORM_TEMPLATES } from "../lib/data";
+import { useAppData } from "../lib/AppDataContext";
 import { SumRow } from "./TemplateBuilder";
 
 const FLOW_COLOR_CHOICES = ["blue", "violet", "amber", "rose", "teal", "emerald"];
@@ -21,8 +21,10 @@ function fbUid(prefix) {
 }
 
 export function FlowBuilder({ lang, back, onSave }) {
+  const { FORM_TEMPLATES } = useAppData();
+  const defaultCode = FORM_TEMPLATES[0]?.code || "FM-IT-01-01";
   const [step, setStep] = React.useState(0);
-  const [flow, setFlow] = React.useState({
+  const [flow, setFlow] = React.useState(() => ({
     id: "FT-NEW-" + Math.random().toString(36).slice(2, 6).toUpperCase(),
     titleTh: lang === "th" ? "Flow ใหม่" : "New Flow",
     titleEn: "New Flow Template",
@@ -33,16 +35,16 @@ export function FlowBuilder({ lang, back, onSave }) {
     owner: "Operations",
     avgDays: 7,
     steps: [
-      { id: fbUid("s"), form: FORM_TEMPLATES[0].code, deptTh: "ฝ่ายปฏิบัติการ", deptEn: "Operations", optional: false, multiplePerHeadcount: false, parallelWith: null, dependsOn: null, labelTh: "", labelEn: "" },
+      { id: fbUid("s"), form: defaultCode, deptTh: "ฝ่ายปฏิบัติการ", deptEn: "Operations", optional: false, multiplePerHeadcount: false, parallelWith: null, dependsOn: null, labelTh: "", labelEn: "" },
     ],
-  });
+  }));
 
   const setF = (k, v) => setFlow(p => ({ ...p, [k]: v }));
 
   const addStep = () => {
     setFlow(p => ({
       ...p, steps: [...p.steps, {
-        id: fbUid("s"), form: FORM_TEMPLATES[0].code,
+        id: fbUid("s"), form: defaultCode,
         deptTh: "ฝ่ายปฏิบัติการ", deptEn: "Operations",
         optional: false, multiplePerHeadcount: false, parallelWith: null,
         dependsOn: p.steps.length > 0 ? p.steps[p.steps.length - 1].id : null,
@@ -210,7 +212,7 @@ function FBSteps({ lang, flow, updateStep, moveStep, deleteStep, addStep }) {
 }
 
 function FBStepRow({ step, idx, flow, lang, onChange, onMove, onDelete }) {
-  const formChoices = FORM_TEMPLATES;
+  const { FORM_TEMPLATES: formChoices } = useAppData();
   const selectedForm = formChoices.find(f => f.code === step.form);
   const dependsOptions = flow.steps.filter((_, i) => i < idx);
 
@@ -274,6 +276,7 @@ function FBStepRow({ step, idx, flow, lang, onChange, onMove, onDelete }) {
 }
 
 function FBReview({ lang, flow }) {
+  const { FORM_TEMPLATES } = useAppData();
   return (
     <>
       <Card className="ttm-form-section">
@@ -329,6 +332,7 @@ function FBReview({ lang, flow }) {
 }
 
 function FBLivePreview({ flow, lang }) {
+  const { FORM_TEMPLATES } = useAppData();
   return (
     <div className="ttm-preview-paper">
       <div className="ttm-preview-paper-top">

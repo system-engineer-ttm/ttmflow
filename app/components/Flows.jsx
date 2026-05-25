@@ -2,7 +2,7 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { cls, Avatar, Badge, Button, Card, Input, SectionTitle, StatusPill, Tabs } from "./Ui";
-import { FLOW_TEMPLATES, FLOW_INSTANCES, FORM_TEMPLATES, REQUESTS, USERS } from "../lib/data";
+import { useAppData } from "../lib/AppDataContext";
 
 const FLOW_STATUS_KIND = {
   pending: "neutral",
@@ -15,8 +15,7 @@ const FLOW_STATUS_KIND = {
 
 export function FlowsPage({ lang, t, openFlow, startFlow, openFlowBuilder }) {
   const [tab, setTab] = React.useState("active");
-  const instances = FLOW_INSTANCES;
-  const templates = FLOW_TEMPLATES;
+  const { FLOW_INSTANCES: instances, FLOW_TEMPLATES: templates } = useAppData();
 
   const filtered = instances.filter(f =>
     tab === "active" ? f.status === "active"
@@ -77,12 +76,14 @@ export function FlowsPage({ lang, t, openFlow, startFlow, openFlowBuilder }) {
 }
 
 function FlowInstanceCard({ flow, lang, onClick }) {
-  const tpl = FLOW_TEMPLATES.find(t => t.id === flow.template);
-  const requester = USERS[flow.requester];
-  const completed = flow.stepStates.filter(s => ["approved", "done"].includes(s.status)).length;
-  const total = flow.stepStates.length;
+  const { FLOW_TEMPLATES, USERS } = useAppData();
+  const tpl = FLOW_TEMPLATES.find(t => t.id === flow.template) || { steps: [], icon: "trending-up", color: "blue" };
+  const requester = USERS[flow.requester] || { nameTh: flow.requester, nameEn: flow.requester };
+  const stepStates = flow.stepStates || [];
+  const completed = stepStates.filter(s => ["approved", "done"].includes(s.status)).length;
+  const total = Math.max(stepStates.length, 1);
   const pct = (completed / total) * 100;
-  const currentStepDef = tpl.steps[flow.currentStepIdx];
+  const currentStepDef = (tpl.steps || [])[flow.currentStepIdx];
 
   return (
     <button className={cls("ttm-flow-card", `is-${tpl.color}`, `is-${flow.status}`)} onClick={onClick}>
@@ -132,10 +133,11 @@ function FlowInstanceCard({ flow, lang, onClick }) {
 }
 
 export function FlowStepsMini({ tpl, states, lang }) {
+  const steps = tpl?.steps || [];
   return (
     <div className="ttm-flow-steps-mini">
-      {tpl.steps.map((s, i) => {
-        const st = states[i];
+      {steps.map((s, i) => {
+        const st = (states || [])[i];
         const done = st && ["approved", "done"].includes(st.status);
         const prog = st && st.status === "inProgress";
         const pend = !st || st.status === "pending";
@@ -149,7 +151,7 @@ export function FlowStepsMini({ tpl, states, lang }) {
                 <span className="ttm-flow-step-mini-dept">{lang === "th" ? s.deptTh : s.deptEn}</span>
               </div>
             </div>
-            {i < tpl.steps.length - 1 && <div className={cls("ttm-flow-step-mini-arrow", done && "is-done")} />}
+            {i < steps.length - 1 && <div className={cls("ttm-flow-step-mini-arrow", done && "is-done")} />}
           </React.Fragment>
         );
       })}
@@ -158,12 +160,15 @@ export function FlowStepsMini({ tpl, states, lang }) {
 }
 
 export function FlowDetail({ lang, flowId, back, openRequest }) {
+  const { FLOW_INSTANCES, FLOW_TEMPLATES, FORM_TEMPLATES, REQUESTS, USERS } = useAppData();
   const flow = FLOW_INSTANCES.find(f => f.id === flowId) || FLOW_INSTANCES[0];
-  const tpl = FLOW_TEMPLATES.find(t => t.id === flow.template);
-  const requester = USERS[flow.requester];
+  if (!flow) return <div className="ttm-page"><div className="ttm-empty">{lang === "th" ? "ไม่พบ Flow" : "Flow not found"}</div></div>;
+  const tpl = FLOW_TEMPLATES.find(t => t.id === flow.template) || { steps: [], icon: "trending-up", color: "blue", titleTh: flow.template, titleEn: flow.template, id: flow.template };
+  const requester = USERS[flow.requester] || { nameTh: flow.requester, nameEn: flow.requester, avatar: "" };
 
-  const completed = flow.stepStates.filter(s => ["approved", "done"].includes(s.status)).length;
-  const total = flow.stepStates.length;
+  const stepStates = flow.stepStates || [];
+  const completed = stepStates.filter(s => ["approved", "done"].includes(s.status)).length;
+  const total = Math.max(stepStates.length, 1);
   const pct = (completed / total) * 100;
 
   return (
@@ -215,7 +220,7 @@ export function FlowDetail({ lang, flowId, back, openRequest }) {
           </div>
           <div>
             <div className="ttm-muted ttm-small">{lang === "th" ? "ปัจจุบันที่" : "Currently at"}</div>
-            <strong>{tpl.steps[flow.currentStepIdx] ? (lang === "th" ? tpl.steps[flow.currentStepIdx].deptTh : tpl.steps[flow.currentStepIdx].deptEn) : "—"}</strong>
+            <strong>{(tpl.steps || [])[flow.currentStepIdx] ? (lang === "th" ? tpl.steps[flow.currentStepIdx].deptTh : tpl.steps[flow.currentStepIdx].deptEn) : "—"}</strong>
           </div>
         </div>
         <div className="ttm-flow-overview-progress">
@@ -229,9 +234,9 @@ export function FlowDetail({ lang, flowId, back, openRequest }) {
           sub={lang === "th" ? "เอกสารที่ผูกกับแต่ละขั้น — คลิกเพื่อเปิดดูฟอร์มจริง" : "Forms attached to each step — click to open"}
         />
         <ol className="ttm-flow-steps">
-          {tpl.steps.map((s, i) => {
-            const st = flow.stepStates[i];
-            const fdef = FORM_TEMPLATES.find(t => t.code === s.form);
+          {(tpl.steps || []).map((s, i) => {
+            const st = stepStates[i];
+            const fdef = FORM_TEMPLATES.find(t => t.code === s.form) || { icon: "file-text", color: "blue", code: s.form, titleTh: s.form, titleEn: s.form };
             const done = st && ["approved", "done"].includes(st.status);
             const prog = st && st.status === "inProgress";
             const pend = !st || st.status === "pending";
@@ -312,6 +317,7 @@ export function FlowDetail({ lang, flowId, back, openRequest }) {
 export function FlowPicker({ lang, back, onStart }) {
   const [picked, setPicked] = React.useState(null);
   const [title, setTitle] = React.useState("");
+  const { FLOW_TEMPLATES } = useAppData();
 
   return (
     <div className="ttm-page ttm-flow-picker">
@@ -335,12 +341,12 @@ export function FlowPicker({ lang, back, onStart }) {
               <div className={cls("ttm-picker-icon", `is-${tpl.color}`)}><Icon name={tpl.icon} size={20} /></div>
               <div>
                 <h3>{lang === "th" ? tpl.titleTh : tpl.titleEn}</h3>
-                <div className="ttm-muted ttm-small">{tpl.steps.length} {lang === "th" ? "ขั้น" : "steps"} · ~{tpl.avgDays} {lang === "th" ? "วัน" : "days"}</div>
+                <div className="ttm-muted ttm-small">{(tpl.steps || []).length} {lang === "th" ? "ขั้น" : "steps"} · ~{tpl.avgDays} {lang === "th" ? "วัน" : "days"}</div>
               </div>
               {picked === tpl.id && <div className="ttm-picker-check"><Icon name="check" size={13} stroke={2.5} /></div>}
             </div>
             <p>{lang === "th" ? tpl.descTh : tpl.descEn}</p>
-            <FlowStepsMini tpl={tpl} states={tpl.steps.map(() => ({ status: "pending" }))} lang={lang} />
+            <FlowStepsMini tpl={tpl} states={(tpl.steps || []).map(() => ({ status: "pending" }))} lang={lang} />
           </button>
         ))}
       </div>

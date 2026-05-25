@@ -2,20 +2,58 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { cls, Avatar, Badge, Button, Card, Field, IconButton, SectionTitle, StatusPill, Textarea } from "./Ui";
-import { REQUESTS, USERS, FORM_TEMPLATES, NOTIFICATIONS, FLOW_INSTANCES } from "../lib/data";
+import { useAppData } from "../lib/AppDataContext";
 
-export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlow }) {
+export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlow, currentUser }) {
+  const { REQUESTS, USERS, FORM_TEMPLATES, FLOW_INSTANCES, NOTIFICATIONS, refreshRequests } = useAppData();
   const req = REQUESTS.find(r => r.id === reqId) || REQUESTS[0];
-  const tmpl = FORM_TEMPLATES.find(f => f.code === req.template);
-  const requester = USERS[req.requester];
+  if (!req) return <div className="ttm-page"><div className="ttm-empty">{lang === "th" ? "ไม่พบเอกสาร" : "Request not found"}</div></div>;
+  const tmpl = FORM_TEMPLATES.find(f => f.code === req.template) || { icon: "file-text", color: "blue", code: req.template, titleTh: req.template, titleEn: req.template };
+  const requester = USERS[req.requester] || { nameTh: req.requester, nameEn: req.requester, dept: "", avatar: "" };
   const [signOpen, setSignOpen] = React.useState(false);
   const [decision, setDecision] = React.useState(null);
   const [comment, setComment] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
 
   const canAct = (role === "approver" || role === "it" || role === "admin") && req.status === "pending";
   const parentFlow = FLOW_INSTANCES.find(f =>
-    f.stepStates.some(s => (s.reqIds || []).includes(req.id))
+    (f.stepStates || []).some(s => (s.reqIds || []).includes(req.id))
   );
+
+  const submitDecision = async () => {
+    if (!decision || busy) return;
+    setBusy(true);
+    const now = new Date().toISOString().slice(0, 16).replace("T", " ");
+    const steps = [...(req.steps || [])];
+    const idx = Math.max(0, (req.currentStep ?? 1));
+    if (steps[idx]) {
+      steps[idx] = { ...steps[idx], action: decision, at: now, signed: true, comment: comment || undefined };
+    }
+    const isLastStep = idx >= steps.length - 1;
+    let newStatus = req.status;
+    let newCurrent = req.currentStep;
+    if (decision === "approved") {
+      if (isLastStep) { newStatus = "approved"; }
+      else { newCurrent = idx + 1; if (steps[newCurrent]) steps[newCurrent] = { ...steps[newCurrent], action: "pending" }; }
+    } else if (decision === "rejected") {
+      newStatus = "rejected";
+    } else if (decision === "done") {
+      newStatus = "done";
+    }
+    try {
+      await fetch(`/api/requests/${req.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ steps, status: newStatus, currentStep: newCurrent, rejectReason: decision === "rejected" ? comment : "" }),
+      });
+      await refreshRequests();
+      setSignOpen(false);
+      setDecision(null);
+      setComment("");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="ttm-page ttm-detail">
@@ -161,6 +199,7 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
 }
 
 function LinkedWorkflowGraph({ req, lang, openRequest }) {
+  const { REQUESTS, USERS, FORM_TEMPLATES } = useAppData();
   const parent = req.links?.triggeredBy ? REQUESTS.find(r => r.id === req.links.triggeredBy) : null;
   const children = (req.links?.triggers || []).map(id => REQUESTS.find(r => r.id === id)).filter(Boolean);
 
@@ -174,8 +213,8 @@ function LinkedWorkflowGraph({ req, lang, openRequest }) {
   }
 
   const renderNode = (r, kind) => {
-    const tobj = FORM_TEMPLATES.find(t => t.code === r.template);
-    const u = USERS[r.requester];
+    const tobj = FORM_TEMPLATES.find(t => t.code === r.template) || { icon: "file-text", color: "blue" };
+    const u = USERS[r.requester] || { nameTh: r.requester, nameEn: r.requester, dept: "", avatar: "" };
     return (
       <div className={cls("ttm-wf-node", `is-${kind}`, `is-${r.status}`, kind !== "current" && "is-clickable")}
            onClick={kind !== "current" && openRequest ? () => openRequest(r.id) : undefined}
@@ -250,10 +289,11 @@ function WFArrow({ lang, fanOut }) {
 }
 
 function ApprovalTimeline({ req, lang }) {
+  const { USERS } = useAppData();
   return (
     <ol className="ttm-approval-timeline">
-      {req.steps.map((s, i) => {
-        const u = USERS[s.user];
+      {(req.steps || []).map((s, i) => {
+        const u = USERS[s.user] || { nameTh: s.user, nameEn: s.user, titleTh: "", titleEn: "", avatar: "" };
         const done = ["submitted", "approved", "done"].includes(s.action);
         const isPending = s.action === "pending";
         const isProg = s.action === "in_progress";
@@ -439,13 +479,15 @@ function KV({ k, v, freeform }) {
 }
 
 function AuditLog({ req, lang }) {
+  const { USERS } = useAppData();
+  const steps = req.steps || [];
   const events = [
     { at: req.createdAt, who: "system", icon: "fingerprint", text: lang === "th" ? `สร้างเลขเอกสารอัตโนมัติ ${req.id}` : `Generated document number ${req.id}` },
-    { at: req.createdAt, who: req.steps[0]?.user, icon: "send", text: lang === "th" ? "ส่งคำขอเข้าระบบ" : "Submitted to workflow" },
+    { at: req.createdAt, who: steps[0]?.user, icon: "send", text: lang === "th" ? "ส่งคำขอเข้าระบบ" : "Submitted to workflow" },
     { at: req.createdAt, who: "system", icon: "line", text: lang === "th" ? "แจ้งเตือน LINE → กลุ่ม IT Operations" : "LINE → IT Operations group" },
     { at: req.createdAt, who: "system", icon: "mail", text: lang === "th" ? "ส่ง Email พร้อมลิงก์อนุมัติ" : "Email with approval link sent" },
-    ...req.steps.filter(s => s.action === "approved").map(s => ({ at: s.at, who: s.user, icon: "check-circle", text: lang === "th" ? `${s.role} อนุมัติ` : `${s.role} approved` })),
-    ...(req.status === "rejected" ? [{ at: req.updatedAt, who: req.steps.find(s => s.action === "rejected")?.user, icon: "x", text: lang === "th" ? "ปฏิเสธคำขอ" : "Rejected" }] : []),
+    ...steps.filter(s => s.action === "approved").map(s => ({ at: s.at, who: s.user, icon: "check-circle", text: lang === "th" ? `${s.role} อนุมัติ` : `${s.role} approved` })),
+    ...(req.status === "rejected" ? [{ at: req.updatedAt, who: steps.find(s => s.action === "rejected")?.user, icon: "x", text: lang === "th" ? "ปฏิเสธคำขอ" : "Rejected" }] : []),
     ...(req.status === "done" ? [{ at: req.updatedAt, who: "system", icon: "shield-check", text: lang === "th" ? "บันทึกเอกสารเข้าสู่คลังถาวร" : "Archived to immutable store" }] : []),
   ];
   return (
@@ -457,7 +499,7 @@ function AuditLog({ req, lang }) {
             <div className="ttm-audit-text">{e.text}</div>
             <div className="ttm-audit-sub">
               <span className="ttm-muted">{e.at}</span>
-              {e.who && e.who !== "system" && (
+              {e.who && e.who !== "system" && USERS[e.who] && (
                 <>
                   <span className="ttm-muted">·</span>
                   <Avatar user={USERS[e.who]} size={16} />

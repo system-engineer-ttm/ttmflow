@@ -3,11 +3,12 @@ import React from "react";
 import Image from "next/image";
 import { Icon } from "./Icon";
 import { cls, Badge, Button, Card, Field, IconButton, Input, SectionTitle, Select, Switch } from "./Ui";
-import { NOTIFICATIONS, FORM_TEMPLATES, shortFormCode } from "../lib/data";
+import { shortFormCode } from "../lib/data";
+import { useAppData } from "../lib/AppDataContext";
 
 export function NotificationsLog({ lang, t }) {
   const [channel, setChannel] = React.useState("all");
-  const list = NOTIFICATIONS;
+  const { NOTIFICATIONS: list } = useAppData();
   const filtered = channel === "all" ? list : list.filter(n => n.channel === channel);
 
   return (
@@ -151,7 +152,7 @@ function EmailPreview({ lang }) {
 
 export function Settings({ lang, t, setRoute }) {
   const [selected, setSelected] = React.useState("FM-IT-01-01");
-  const tmpl = FORM_TEMPLATES;
+  const { FORM_TEMPLATES: tmpl } = useAppData();
   const cur = tmpl.find(x => x.code === selected) || tmpl[tmpl.length - 1];
 
   return (

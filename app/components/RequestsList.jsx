@@ -2,17 +2,19 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { cls, Avatar, Badge, Button, Card, Select, StatusPill, Tabs } from "./Ui";
-import { REQUESTS, USERS, FORM_TEMPLATES } from "../lib/data";
+import { useAppData } from "../lib/AppDataContext";
 
-export function RequestsList({ lang, t, role, scope, openRequest }) {
-  const reqs = REQUESTS;
-  const tmpl = FORM_TEMPLATES;
+export function RequestsList({ lang, t, role, scope, openRequest, currentUser }) {
+  const { REQUESTS: reqs, USERS, FORM_TEMPLATES: tmpl } = useAppData();
   const [filter, setFilter] = React.useState("all");
   const [q, setQ] = React.useState("");
   const [tmplFilter, setTmplFilter] = React.useState("all");
 
   let filtered = reqs;
-  if (scope === "my") filtered = reqs.filter(r => r.requester === "REQ003");
+  if (scope === "my") {
+    const myId = currentUser?.id;
+    filtered = myId ? reqs.filter(r => r.requester === myId) : reqs;
+  }
   if (scope === "approvals") filtered = reqs.filter(r => r.status === "pending");
   if (scope === "it") filtered = reqs.filter(r => r.status === "inProgress" || r.status === "approved");
 
@@ -90,8 +92,8 @@ export function RequestsList({ lang, t, role, scope, openRequest }) {
           </thead>
           <tbody>
             {filtered.map(r => {
-              const tobj = tmpl.find(x => x.code === r.template);
-              const u = USERS[r.requester];
+              const tobj = tmpl.find(x => x.code === r.template) || { icon: "file-text", color: "blue", code: r.template, titleTh: r.template, titleEn: r.template };
+              const u = USERS[r.requester] || { nameTh: r.requester, nameEn: r.requester, dept: "" };
               return (
                 <tr key={r.id} onClick={() => openRequest(r.id)} className="ttm-tr-clickable">
                   <td>

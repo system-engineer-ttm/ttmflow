@@ -2,7 +2,8 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { cls, Avatar, Badge, Button, Card, Check, Field, Input, Select, Stepper, Textarea } from "./Ui";
-import { FORM_TEMPLATES, USERS, shortFormCode } from "../lib/data";
+import { shortFormCode } from "../lib/data";
+import { useAppData } from "../lib/AppDataContext";
 
 // Per-session running number so the same fill keeps the same doc.
 let __ttmRun = null;
@@ -15,8 +16,10 @@ function genDocNo(code) {
   return `${shortFormCode(code)}-${yymmdd}-${n}`;
 }
 
-export function FormFill({ lang, t, code, back, onSubmitted }) {
-  const tmpl = FORM_TEMPLATES.find(f => f.code === code) || FORM_TEMPLATES[0];
+export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
+  const { FORM_TEMPLATES, USERS } = useAppData();
+  const tmpl = FORM_TEMPLATES.find(f => f.code === code) || FORM_TEMPLATES[0] || { code, color: "blue", icon: "file-text", titleTh: code, titleEn: code, approvers: [], sections: [] };
+  const [submitting, setSubmitting] = React.useState(false);
   const [stepIdx, setStepIdx] = React.useState(0);
   const [state, setState] = React.useState(() => ({
     docNo: genDocNo(tmpl.code),
@@ -100,7 +103,37 @@ export function FormFill({ lang, t, code, back, onSubmitted }) {
         <Button variant="ghost" icon="file-text">{t.common.saveDraft}</Button>
         {stepIdx > 0 && <Button variant="secondary" icon="arrow-left" onClick={() => setStepIdx(stepIdx - 1)}>{t.common.back}</Button>}
         {stepIdx < 3 && <Button variant="primary" onClick={() => setStepIdx(stepIdx + 1)}>{t.common.next} <Icon name="arrow-right" size={15} /></Button>}
-        {stepIdx === 3 && <Button variant="primary" icon="send" onClick={() => onSubmitted(state.docNo)}>{t.common.submit}</Button>}
+        {stepIdx === 3 && <Button variant="primary" icon="send" disabled={submitting} onClick={async () => {
+          if (submitting) return;
+          setSubmitting(true);
+          try {
+            const approvers = tmpl.approvers || [];
+            const steps = [
+              { role: lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester", user: currentUser?.id || "REQ003", action: "submitted", at: new Date().toISOString().slice(0,16).replace("T"," "), signed: true },
+              ...approvers.map((a, i) => ({ role: typeof a === "string" ? a : (a.roleTh || a.roleEn || `Step ${i+1}`), user: "", action: i === 0 ? "pending" : "queued", at: null, signed: false })),
+            ];
+            await fetch("/api/requests", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                id: state.docNo,
+                template: tmpl.code,
+                titleTh: state.purpose?.slice(0, 80) || (lang === "th" ? tmpl.titleTh : tmpl.titleEn),
+                titleEn: state.purpose?.slice(0, 80) || tmpl.titleEn,
+                priority: "normal",
+                status: "pending",
+                currentStep: 1,
+                steps,
+                payload: state,
+              }),
+            });
+          } catch (e) {
+            /* ignore — still navigate to success page */
+          } finally {
+            setSubmitting(false);
+            onSubmitted(state.docNo);
+          }
+        }}>{t.common.submit}</Button>}
       </div>
     </div>
   );
@@ -280,11 +313,13 @@ function StepDetails({ lang, state, set, setItem }) {
 }
 
 function StepApprovers({ lang }) {
+  const { USERS } = useAppData();
+  const fallback = { nameTh: "—", nameEn: "—", titleTh: "—", titleEn: "—", avatar: "?" };
   const chain = [
-    { user: USERS.REQ003, role: lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester", auto: true },
-    { user: USERS.APP001, role: lang === "th" ? "หัวหน้าฝ่ายผู้แจ้ง" : "Line Manager", sla: "1 " + (lang === "th" ? "วันทำการ" : "business day") },
-    { user: USERS.APP002, role: lang === "th" ? "ผู้จัดการฝ่าย IT" : "IT Manager", sla: "1 " + (lang === "th" ? "วันทำการ" : "business day") },
-    { user: USERS.IT001, role: lang === "th" ? "เจ้าหน้าที่ IT ผู้รับงาน" : "IT Staff (assignee)", sla: "ตาม SLA งาน" },
+    { user: USERS.REQ003 || fallback, role: lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester", auto: true },
+    { user: USERS.APP001 || fallback, role: lang === "th" ? "หัวหน้าฝ่ายผู้แจ้ง" : "Line Manager", sla: "1 " + (lang === "th" ? "วันทำการ" : "business day") },
+    { user: USERS.APP002 || fallback, role: lang === "th" ? "ผู้จัดการฝ่าย IT" : "IT Manager", sla: "1 " + (lang === "th" ? "วันทำการ" : "business day") },
+    { user: USERS.IT001 || fallback, role: lang === "th" ? "เจ้าหน้าที่ IT ผู้รับงาน" : "IT Staff (assignee)", sla: "ตาม SLA งาน" },
   ];
   return (
     <Card className="ttm-form-section">
@@ -497,7 +532,15 @@ function DynField({ field, lang, value, onChange }) {
 }
 
 function StepDynamicApprovers({ lang, tmpl }) {
-  const fallback = [USERS.APP001, USERS.APP002, USERS.IT001, USERS.IT002];
+  const { USERS } = useAppData();
+  const placeholderUser = { nameTh: "—", nameEn: "—", titleTh: "", titleEn: "", avatar: "?" };
+  const fallback = [
+    USERS.APP001 || placeholderUser,
+    USERS.APP002 || placeholderUser,
+    USERS.IT001 || placeholderUser,
+    USERS.IT002 || placeholderUser,
+  ];
+  const me = USERS.REQ003 || placeholderUser;
   const approvers = tmpl.approvers || [];
   return (
     <Card className="ttm-form-section">
@@ -508,10 +551,10 @@ function StepDynamicApprovers({ lang, tmpl }) {
       <ol className="ttm-approver-chain">
         <li className="ttm-approver-row">
           <div className="ttm-approver-num">0</div>
-          <Avatar user={USERS.REQ003} size={40} />
+          <Avatar user={me} size={40} />
           <div className="ttm-approver-meta">
-            <div className="ttm-approver-name">{lang === "th" ? USERS.REQ003.nameTh : USERS.REQ003.nameEn}</div>
-            <div className="ttm-approver-role">{lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester"} · <span className="ttm-muted">{lang === "th" ? USERS.REQ003.titleTh : USERS.REQ003.titleEn}</span></div>
+            <div className="ttm-approver-name">{lang === "th" ? me.nameTh : me.nameEn}</div>
+            <div className="ttm-approver-role">{lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester"} · <span className="ttm-muted">{lang === "th" ? me.titleTh : me.titleEn}</span></div>
           </div>
           <div className="ttm-approver-sla"><Badge kind="green">{lang === "th" ? "ลงนามอัตโนมัติ" : "Auto-sign"}</Badge></div>
         </li>

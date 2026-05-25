@@ -24,7 +24,10 @@
       "Bash(findstr \":3000\")",
       "Bash(taskkill /PID 6400 /F)",
       "PowerShell(Stop-Process -Id 6400 -Force -ErrorAction SilentlyContinue)",
-      "Bash(mkdir -p \"C:/Users/TTM-NB-7/Documents/TTMFlow/app/api/users/[id]\" && echo \"ok\")"
+      "Bash(mkdir -p \"C:/Users/TTM-NB-7/Documents/TTMFlow/app/api/users/[id]\" && echo \"ok\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }

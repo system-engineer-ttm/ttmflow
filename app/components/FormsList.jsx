@@ -2,12 +2,12 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { cls, Badge, Card, Tabs } from "./Ui";
-import { FORM_TEMPLATES } from "../lib/data";
+import { useAppData } from "../lib/AppDataContext";
 
 export function FormsList({ lang, t, openForm }) {
   const [cat, setCat] = React.useState("all");
   const [q, setQ] = React.useState("");
-  const tmpl = FORM_TEMPLATES;
+  const { FORM_TEMPLATES: tmpl } = useAppData();
 
   const categories = [
     { id: "all", label: t.common.all, icon: "list" },

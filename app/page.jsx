@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
-import { i18n, FLOW_INSTANCES, FLOW_TEMPLATES, FORM_TEMPLATES, ROLE_PERMISSIONS } from "./lib/data";
+import { i18n, ROLE_PERMISSIONS } from "./lib/data";
+import { AppDataProvider, useAppData } from "./lib/AppDataContext";
 import { Icon } from "./components/Icon";
 import { cls } from "./components/Ui";
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakSelect } from "./components/TweaksPanel";
@@ -35,9 +36,18 @@ const ACCENT_PALETTES = {
 };
 
 export default function App() {
+  return (
+    <AppDataProvider enabled={true}>
+      <AppShell />
+    </AppDataProvider>
+  );
+}
+
+function AppShell() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const lang = t.lang;
   const tt = i18n[lang];
+  const data = useAppData();
 
   // ── Auth state ───────────────────────────────────────────────────────────
   const [currentUser, setCurrentUser] = React.useState(null);
@@ -60,6 +70,7 @@ export default function App() {
     setCurrentUser(user);
     setTweak("role", user.role);
     setRoute("dashboard");
+    data.reload();
   };
 
   const handleLogout = async () => {
@@ -83,8 +94,6 @@ export default function App() {
   const [reqId, setReqId] = React.useState(null);
   const [flowId, setFlowId] = React.useState(null);
   const [submittedDoc, setSubmittedDoc] = React.useState(null);
-  // Re-render trigger when FORM_TEMPLATES or FLOW_TEMPLATES mutate
-  const [, setTplVersion] = React.useState(0);
 
   React.useEffect(() => {
     const root = document.documentElement;
@@ -154,6 +163,55 @@ export default function App() {
     );
   }
 
+  // Helpers that hit the API + refresh local cache
+  const startNewFlow = async (tplId, title) => {
+    const tpl = data.FLOW_TEMPLATES.find(tp => tp.id === tplId);
+    const stepStates = (tpl?.steps ?? []).map((s, i) => ({
+      stepId: s.id, reqIds: [], status: i === 0 ? "inProgress" : "pending",
+    }));
+    const r = await fetch("/api/flows/instances", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ template: tplId, titleTh: title, titleEn: title, stepStates, status: "active", currentStepIdx: 0 }),
+    });
+    const inst = await r.json().catch(() => null);
+    await data.refreshFlowInstances();
+    if (inst?.id) {
+      setFlowId(inst.id);
+      setRouteWithReset("flowDetail");
+    } else {
+      setRouteWithReset("flows");
+    }
+  };
+
+  const saveFlowTemplate = async (flow) => {
+    await fetch("/api/flows/templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(flow),
+    });
+    await data.refreshFlowTemplates();
+    setRouteWithReset("flows");
+  };
+
+  const saveFormTemplate = async (tpl) => {
+    const payload = {
+      code: tpl.code, icon: tpl.icon, color: tpl.color, category: tpl.category,
+      titleTh: tpl.titleTh, titleEn: tpl.titleEn || tpl.titleTh,
+      descTh: tpl.descTh || "", descEn: tpl.descEn || tpl.descTh || "",
+      approvers: (tpl.approvers || []).map(a => a.roleTh || a),
+      sections: tpl.sections || [],
+      avgDays: tpl.avgDays || 1.5,
+    };
+    await fetch("/api/forms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    await data.refreshForms();
+    setRouteWithReset("settings");
+  };
+
   // ── Screens ──────────────────────────────────────────────────────────────
   let screen;
   if (route === "dashboard")
@@ -164,45 +222,28 @@ export default function App() {
   else if (route === "flowDetail")
     screen = <FlowDetail lang={lang} t={tt} flowId={flowId} back={() => setRouteWithReset("flows")} openRequest={openRequest} />;
   else if (route === "flowStart")
-    screen = <FlowPicker lang={lang} t={tt} back={() => setRouteWithReset("flows")} onStart={(tplId, title) => {
-      const newId = `FL-${(() => { const d = new Date(); return `${String(d.getFullYear()).slice(-2)}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`; })()}-${String(FLOW_INSTANCES.length + 1).padStart(3, "0")}`;
-      const tpl = FLOW_TEMPLATES.find(tp => tp.id === tplId);
-      const newFlow = {
-        id: newId, template: tplId, titleTh: title, titleEn: title,
-        requester: currentUser.id,
-        createdAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-        updatedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-        status: "active", currentStepIdx: 0,
-        stepStates: tpl.steps.map((s, i) => ({ stepId: s.id, reqIds: [], status: i === 0 ? "inProgress" : "pending" })),
-      };
-      FLOW_INSTANCES.unshift(newFlow);
-      setFlowId(newId);
-      setRouteWithReset("flowDetail");
-    }} />;
+    screen = <FlowPicker lang={lang} t={tt} back={() => setRouteWithReset("flows")} onStart={startNewFlow} />;
   else if (route === "flowBuilder")
-    screen = <FlowBuilder lang={lang} back={() => setRouteWithReset("flows")} onSave={(flow) => {
-      FLOW_TEMPLATES.push(flow);
-      setTplVersion(v => v + 1);
-      setRouteWithReset("flows");
-    }} />;
+    screen = <FlowBuilder lang={lang} back={() => setRouteWithReset("flows")} onSave={saveFlowTemplate} />;
   else if (route === "new")
     screen = <FormsList lang={lang} t={tt} openForm={openForm} />;
   else if (route === "fill")
     screen = <FormFill lang={lang} t={tt} code={formCode || "FM-IT-01-01"} back={() => setRouteWithReset("new")}
-      onSubmitted={(doc) => { setSubmittedDoc(doc); setRoute("submitted"); }} />;
+      currentUser={currentUser}
+      onSubmitted={(doc) => { setSubmittedDoc(doc); setRoute("submitted"); data.refreshRequests(); }} />;
   else if (route === "submitted")
     screen = <Submitted lang={lang} t={tt} docNo={submittedDoc} back={() => setRouteWithReset("my")} />;
   else if (route === "my")
-    screen = <RequestsList lang={lang} t={tt} role={role} scope="my" openRequest={openRequest} />;
+    screen = <RequestsList lang={lang} t={tt} role={role} scope="my" openRequest={openRequest} currentUser={currentUser} />;
   else if (route === "approvals")
-    screen = <RequestsList lang={lang} t={tt} role={role} scope="approvals" openRequest={openRequest} />;
+    screen = <RequestsList lang={lang} t={tt} role={role} scope="approvals" openRequest={openRequest} currentUser={currentUser} />;
   else if (route === "it")
-    screen = <RequestsList lang={lang} t={tt} role={role} scope="it" openRequest={openRequest} />;
+    screen = <RequestsList lang={lang} t={tt} role={role} scope="it" openRequest={openRequest} currentUser={currentUser} />;
   else if (route === "archive")
-    screen = <RequestsList lang={lang} t={tt} role={role} scope="archive" openRequest={openRequest} />;
+    screen = <RequestsList lang={lang} t={tt} role={role} scope="archive" openRequest={openRequest} currentUser={currentUser} />;
   else if (route === "request")
     screen = <RequestDetail lang={lang} t={tt} reqId={reqId} role={role} back={() => setRouteWithReset("approvals")}
-      openRequest={openRequest} openFlow={openFlow} />;
+      openRequest={openRequest} openFlow={openFlow} currentUser={currentUser} />;
   else if (route === "notif")
     screen = <NotificationsLog lang={lang} t={tt} />;
   else if (route === "integrations")
@@ -210,18 +251,7 @@ export default function App() {
   else if (route === "settings")
     screen = <Settings lang={lang} t={tt} setRoute={setRouteWithReset} />;
   else if (route === "templateBuilder")
-    screen = <TemplateBuilder lang={lang} t={tt} back={() => setRouteWithReset("settings")} onSave={(tpl) => {
-      FORM_TEMPLATES.push({
-        code: tpl.code, icon: tpl.icon, color: tpl.color, category: tpl.category,
-        titleTh: tpl.titleTh, titleEn: tpl.titleEn || tpl.titleTh,
-        descTh: tpl.descTh || "", descEn: tpl.descEn || tpl.descTh || "",
-        approvers: tpl.approvers.map(a => a.roleTh), avgDays: 1.5, custom: true,
-        sections: tpl.sections, effectiveDate: tpl.effectiveDate,
-        revision: tpl.revision, notifications: tpl.notifications, numbering: tpl.numbering,
-      });
-      setTplVersion(v => v + 1);
-      setRouteWithReset("settings");
-    }} />;
+    screen = <TemplateBuilder lang={lang} t={tt} back={() => setRouteWithReset("settings")} onSave={saveFormTemplate} />;
   else if (route === "users")
     screen = <UserManagement lang={lang} />;
   else
