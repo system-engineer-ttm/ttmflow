@@ -3,6 +3,15 @@ import { Icon } from "./Icon";
 import { cls, Button, Card, SectionTitle } from "./Ui";
 
 export function Submitted({ lang, t, docNo, back }) {
+  const openPreview = () => {
+    if (!docNo) return;
+    window.open(`/print/${encodeURIComponent(docNo)}`, "_blank", "noopener,noreferrer");
+  };
+  const openDownload = () => {
+    if (!docNo) return;
+    window.open(`/print/${encodeURIComponent(docNo)}?print=1`, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="ttm-page ttm-submitted">
       <Card className="ttm-submitted-card">
@@ -24,8 +33,8 @@ export function Submitted({ lang, t, docNo, back }) {
         </div>
 
         <div className="ttm-submitted-actions">
-          <Button variant="ghost" icon="file-text">{t.common.preview}</Button>
-          <Button variant="ghost" icon="download">{t.common.download}</Button>
+          <Button variant="ghost" icon="file-text" onClick={openPreview}>{t.common.preview}</Button>
+          <Button variant="ghost" icon="download" onClick={openDownload}>{t.common.download}</Button>
           <Button variant="primary" onClick={back}>{lang === "th" ? "ดูคำขอของฉัน" : "Go to my requests"} <Icon name="arrow-right" size={15} /></Button>
         </div>
       </Card>

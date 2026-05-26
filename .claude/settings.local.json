@@ -27,7 +27,14 @@
       "Bash(mkdir -p \"C:/Users/TTM-NB-7/Documents/TTMFlow/app/api/users/[id]\" && echo \"ok\")",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(python -c ' *)",
+      "Bash(where python *)",
+      "Bash(where pdftotext *)",
+      "Bash(pdftotext -layout \"C:\\\\Users\\\\TTM-NB-7\\\\Downloads\\\\QP-IT\\\\IT-01-การบริหารจัดการระบบสารสนเทศ\\\\FM-IT-01-01_แบบฟอร์มขอใช้ ระบบ-อุปกรณ์.pdf\" -)",
+      "Bash(pdftotext -layout \"C:\\\\Users\\\\TTM-NB-7\\\\Documents\\\\TTMFlow\\\\FM-IT\\\\FM-IT-01-09_แบบฟอร์มจัดการคิวรับสายระบบโทรศัพท์.pdf\" -)",
+      "Bash(pdftotext -layout \"C:\\\\Users\\\\TTM-NB-7\\\\Documents\\\\TTMFlow\\\\FM-IT\\\\FM-IT-01-10_แบบฟอร์มขอจัดการติดตั้งอุปกรณ์ไอที.pdf\" -)",
+      "Bash(pdftotext -layout \"C:\\\\Users\\\\TTM-NB-7\\\\Documents\\\\TTMFlow\\\\FM-IT\\\\FM-IT-01-11_แบบฟอร์มแจ้งซ่อมและขอความช่วยเหลือทางไอที.pdf\" -)"
     ]
   }
 }

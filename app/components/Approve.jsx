@@ -186,8 +186,8 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
               <div><dt>{lang === "th" ? "ความสมบูรณ์" : "Completeness"}</dt><dd><Badge kind="green" dot>100% ISO-ready</Badge></dd></div>
             </dl>
             <div className="ttm-detail-pdfs">
-              <Button variant="secondary" icon="file-text">{t.common.preview}</Button>
-              <Button variant="ghost" icon="download">{t.common.download}</Button>
+              <Button variant="secondary" icon="file-text" onClick={() => window.open(`/print/${encodeURIComponent(req.id)}`, "_blank", "noopener,noreferrer")}>{t.common.preview}</Button>
+              <Button variant="ghost" icon="download" onClick={() => window.open(`/print/${encodeURIComponent(req.id)}?print=1`, "_blank", "noopener,noreferrer")}>{t.common.download}</Button>
             </div>
           </Card>
         </div>
