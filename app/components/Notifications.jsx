@@ -155,6 +155,23 @@ export function Settings({ lang, t, setRoute }) {
   const { FORM_TEMPLATES: tmpl } = useAppData();
   const cur = tmpl.find(x => x.code === selected) || tmpl[tmpl.length - 1];
 
+  if (!cur) {
+    return (
+      <div className="ttm-page ttm-settings-page">
+        <div className="ttm-list-head">
+          <div>
+            <h2>{t.nav.settings}</h2>
+            <p>{lang === "th" ? "ยังไม่มีแบบฟอร์มในระบบ" : "No form templates yet"}</p>
+          </div>
+          <Button variant="primary" icon="plus" onClick={() => setRoute && setRoute("templateBuilder")}>{lang === "th" ? "ขึ้นทะเบียนฟอร์มใหม่" : "Register new form"}</Button>
+        </div>
+        <div className="ttm-empty" style={{ padding: "3rem", textAlign: "center" }}>
+          {lang === "th" ? "ยังไม่มีแบบฟอร์มในฐานข้อมูล — กดปุ่ม \"ขึ้นทะเบียนฟอร์มใหม่\" เพื่อสร้าง" : "No form templates in the database — click \"Register new form\" to create one"}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="ttm-page ttm-settings-page">
       <div className="ttm-list-head">
@@ -251,7 +268,7 @@ export function Settings({ lang, t, setRoute }) {
               title={lang === "th" ? "ลำดับการอนุมัติ" : "Approval chain"}
               right={<Button variant="ghost" size="sm" icon="plus">{lang === "th" ? "เพิ่มขั้น" : "Add step"}</Button>}
             />
-            <ApprovalChainEditor approvers={cur.approvers} lang={lang} />
+            <ApprovalChainEditor approvers={cur.approvers || []} lang={lang} />
           </Card>
 
           <Card>
