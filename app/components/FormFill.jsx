@@ -19,10 +19,13 @@ function genDocNo(code) {
 export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
   const { FORM_TEMPLATES, USERS } = useAppData();
   const tmpl = FORM_TEMPLATES.find(f => f.code === code) || FORM_TEMPLATES[0] || { code, color: "blue", icon: "file-text", titleTh: code, titleEn: code, approvers: [], sections: [] };
+  const hasSections = Array.isArray(tmpl.sections) && tmpl.sections.length > 0;
   const [submitting, setSubmitting] = React.useState(false);
   const [stepIdx, setStepIdx] = React.useState(0);
+  const today = new Date().toISOString().slice(0, 10);
   const [state, setState] = React.useState(() => ({
     docNo: genDocNo(tmpl.code),
+    // Hardcoded path defaults (used when template has no sections)
     employeeName: lang === "th" ? "นพดล ศรีจันทร์" : "Nopadol Srichan",
     employeeId: "EMP-2526-014",
     position: "Call Center Agent",
@@ -45,6 +48,14 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
     purpose: lang === "th"
       ? "พนักงานใหม่เริ่มงาน 1 มิ.ย. 2569 ในตำแหน่ง Call Center Agent โครงการ AIS Premier ต้องการ Email, สิทธิ์ PBX, Notebook และอุปกรณ์ครบเซ็ตเพื่อเริ่มงานในวันแรก"
       : "New hire starts 1 Jun 2026 as a Call Center Agent on Project AIS Premier — needs email, PBX access, notebook, and a full equipment set for day one.",
+    // Dynamic schema bucket — prefill basic fields from currentUser
+    sch: {
+      employeeName: lang === "th" ? (currentUser?.nameTh || "") : (currentUser?.nameEn || ""),
+      employeeId: currentUser?.id || "",
+      position: lang === "th" ? (currentUser?.titleTh || "") : (currentUser?.titleEn || ""),
+      department: currentUser?.dept || "",
+      dateRequest: today,
+    },
   }));
 
   const set = (k, v) => setState(s => ({ ...s, [k]: v }));
@@ -81,10 +92,10 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
 
       <Stepper steps={steps} current={stepIdx} />
 
-      {tmpl.sections ? (
+      {hasSections ? (
         <>
-          {stepIdx === 0 && <StepRequester lang={lang} t={t} state={state} set={set} />}
-          {stepIdx === 1 && <StepDynamicSchema lang={lang} tmpl={tmpl} state={state} set={set} />}
+          {stepIdx === 0 && <StepDynamicSchema lang={lang} sections={[tmpl.sections[0]]} state={state} set={set} />}
+          {stepIdx === 1 && <StepDynamicSchema lang={lang} sections={tmpl.sections.slice(1)} state={state} set={set} />}
           {stepIdx === 2 && <StepDynamicApprovers lang={lang} tmpl={tmpl} />}
           {stepIdx === 3 && <StepDynamicReview lang={lang} state={state} tmpl={tmpl} />}
         </>
@@ -453,19 +464,30 @@ function PDFPaperMini({ state, tmpl }) {
   );
 }
 
-function StepDynamicSchema({ lang, tmpl, state, set }) {
+function StepDynamicSchema({ lang, tmpl, sections, state, set }) {
   const sch = state.sch || {};
   const update = (id, v) => set("sch", { ...sch, [id]: v });
+  const list = Array.isArray(sections) ? sections : (tmpl?.sections || []);
+
+  if (list.length === 0) {
+    return (
+      <Card className="ttm-form-section">
+        <div className="ttm-empty" style={{ padding: "1.5rem" }}>
+          {lang === "th" ? "ไม่มีฟิลด์ในขั้นนี้" : "No fields in this step"}
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <>
-      {tmpl.sections.map((sec) => (
+      {list.map((sec) => (
         <Card key={sec.id} className="ttm-form-section">
           <div className="ttm-form-section-head">
             <h3>{lang === "th" ? sec.titleTh : sec.titleEn}</h3>
           </div>
           <div className="ttm-form-grid">
-            {sec.fields.map(f => (
+            {(sec.fields || []).map(f => (
               <DynField key={f.id} field={f} lang={lang} value={sch[f.id]} onChange={v => update(f.id, v)} />
             ))}
           </div>
