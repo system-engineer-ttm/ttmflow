@@ -236,6 +236,11 @@ function FormIT0101({ req, tmpl, usersMap }) {
 
           {/* Signature table */}
           <table className="sig-table">
+            <colgroup>
+              <col style={{ width: "33.333%" }} />
+              <col style={{ width: "33.333%" }} />
+              <col style={{ width: "33.334%" }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>ผู้แจ้งเรื่อง</th>
@@ -245,21 +250,9 @@ function FormIT0101({ req, tmpl, usersMap }) {
             </thead>
             <tbody>
               <tr>
-                <td>
-                  <div className="sig-row">ลงชื่อ : <DotInline value={requester.nameTh} width="60%" /></div>
-                  <div className="sig-row">ตำแหน่ง : <DotInline value={requester.titleTh} width="60%" /></div>
-                  <div className="sig-row sig-date-row">วันที่ : <DotInline width="15%" /> / <DotInline width="15%" /> / <DotInline width="15%" /></div>
-                </td>
-                <td>
-                  <div className="sig-row">ลงชื่อ : <DotInline value={itStaff?.nameTh} width="60%" /></div>
-                  <div className="sig-row">ตำแหน่ง : <DotInline value={itStaff?.titleTh} width="60%" /></div>
-                  <div className="sig-row sig-date-row">วันที่ : <DotInline width="15%" /> / <DotInline width="15%" /> / <DotInline width="15%" /></div>
-                </td>
-                <td>
-                  <div className="sig-row">ลงชื่อ : <DotInline value={approver?.nameTh} width="60%" /></div>
-                  <div className="sig-row">ตำแหน่ง : <DotInline value={approver?.titleTh} width="60%" /></div>
-                  <div className="sig-row sig-date-row">วันที่ : <DotInline width="15%" /> / <DotInline width="15%" /> / <DotInline width="15%" /></div>
-                </td>
+                <SigCell name={requester.nameTh} title={requester.titleTh} />
+                <SigCell name={itStaff?.nameTh} title={itStaff?.titleTh} />
+                <SigCell name={approver?.nameTh} title={approver?.titleTh} />
               </tr>
             </tbody>
           </table>
@@ -345,33 +338,51 @@ function Page({ children }) {
 function DocHeader() {
   return (
     <table className="header-table">
+      <colgroup>
+        <col style={{ width: "26%" }} />
+        <col style={{ width: "44%" }} />
+        <col style={{ width: "30%" }} />
+      </colgroup>
       <tbody>
         <tr>
           <td rowSpan={3} className="logo-cell">
-            <div className="logo-wrap">
-              <div className="logo-mark">
-                <span>Talk to</span>
-                <span>Me Co., Ltd.</span>
-              </div>
-              <div className="logo-sub">บริษัท ทอล์คทูมี จำกัด</div>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/logo.jpg" alt="Talk to Me Co., Ltd." className="logo-img" />
           </td>
-          <td className="hl">ชนิดเอกสาร :</td>
-          <td className="hv">แบบฟอร์ม</td>
-          <td className="hl">รหัสเอกสาร :</td>
-          <td className="hv">FM-IT-01-01</td>
+          <td className="h-cell">
+            <span className="h-label">ชนิดเอกสาร</span>
+            <span className="h-colon">:</span>
+            <span className="h-value">แบบฟอร์ม</span>
+          </td>
+          <td className="h-cell">
+            <span className="h-label">รหัสเอกสาร</span>
+            <span className="h-colon">:</span>
+            <span className="h-value">FM-IT-01-01</span>
+          </td>
         </tr>
         <tr>
-          <td className="hl">หน่วยงาน :</td>
-          <td className="hv">เทคโนโลยีสารสนเทศ</td>
-          <td className="hl">แก้ไขครั้งที่ :</td>
-          <td className="hv">00</td>
+          <td className="h-cell">
+            <span className="h-label">หน่วยงาน</span>
+            <span className="h-colon">:</span>
+            <span className="h-value">เทคโนโลยีสารสนเทศ</span>
+          </td>
+          <td className="h-cell">
+            <span className="h-label">แก้ไขครั้งที่</span>
+            <span className="h-colon">:</span>
+            <span className="h-value">00</span>
+          </td>
         </tr>
         <tr>
-          <td className="hl">หัวข้อเรื่อง :</td>
-          <td className="hv">แบบฟอร์มขอใช้ ระบบ/อุปกรณ์</td>
-          <td className="hl">วันที่บังคับใช้ :</td>
-          <td className="hv">01/03/2569</td>
+          <td className="h-cell">
+            <span className="h-label">หัวข้อเรื่อง</span>
+            <span className="h-colon">:</span>
+            <span className="h-value">แบบฟอร์มขอใช้ ระบบ/อุปกรณ์</span>
+          </td>
+          <td className="h-cell">
+            <span className="h-label">วันที่บังคับใช้</span>
+            <span className="h-colon">:</span>
+            <span className="h-value">01/03/2569</span>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -386,6 +397,33 @@ function PageFooter({ pageNum, totalPages }) {
       </div>
       <div className="footer-page">หน้า {pageNum} จาก {totalPages}</div>
     </div>
+  );
+}
+
+function SigCell({ name, title }) {
+  return (
+    <td className="sig-cell">
+      <div className="sig-row">
+        <span className="sig-label">ลงชื่อ :</span>
+        <span className="sig-fill">
+          <span className="sig-text" title={name || ""}>{name || ""}</span>
+        </span>
+      </div>
+      <div className="sig-row">
+        <span className="sig-label">ตำแหน่ง :</span>
+        <span className="sig-fill">
+          <span className="sig-text" title={title || ""}>{title || ""}</span>
+        </span>
+      </div>
+      <div className="sig-row sig-date-row">
+        <span className="sig-label">วันที่ :</span>
+        <span className="sig-date-slot" />
+        <span className="sig-slash">/</span>
+        <span className="sig-date-slot" />
+        <span className="sig-slash">/</span>
+        <span className="sig-date-slot" />
+      </div>
+    </td>
   );
 }
 
@@ -490,49 +528,46 @@ function PrintStyles() {
       }
       .toolbar button:hover { background: #f3f4f6; }
 
-      /* Header table */
+      /* Header table — 3 columns × 3 rows */
       .header-table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
         margin-bottom: 8px;
       }
       .header-table td {
         border: 1px solid #000;
-        padding: 4px 8px;
-        font-size: 12px;
+        padding: 6px 10px;
+        font-size: 12.5px;
+        vertical-align: middle;
+        overflow: hidden;
       }
       .logo-cell {
-        width: 22%;
         text-align: center;
         vertical-align: middle;
-        padding: 8px !important;
+        padding: 6px !important;
       }
-      .logo-wrap {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
+      .logo-img {
+        max-width: 100%;
+        max-height: 90px;
+        object-fit: contain;
+        display: block;
+        margin: 0 auto;
       }
-      .logo-mark {
-        width: 70px;
-        height: 70px;
-        border-radius: 50%;
-        background: #5cc3d3;
-        color: #fff;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        font-weight: 700;
-        font-size: 11px;
-        line-height: 1.2;
+      .h-cell {
+        display: table-cell;
       }
-      .logo-sub {
-        font-size: 10px;
-        color: #000;
+      .h-cell .h-label {
+        display: inline-block;
+        min-width: 80px;
+        font-weight: 500;
       }
-      .hl { width: 14%; white-space: nowrap; }
-      .hv { width: 24%; }
+      .h-cell .h-colon {
+        margin: 0 6px;
+      }
+      .h-cell .h-value {
+        font-weight: 500;
+      }
 
       /* Title */
       .doc-title {
@@ -626,33 +661,67 @@ function PrintStyles() {
         font-weight: 500;
       }
 
-      /* Signature table */
+      /* Signature table — locked cell widths */
       .sig-table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
         margin-top: 20px;
       }
       .sig-table th, .sig-table td {
         border: 1px solid #000;
-        padding: 10px 14px;
+        padding: 10px 12px;
         font-size: 12.5px;
         vertical-align: top;
         text-align: left;
+        overflow: hidden;
+        word-break: break-word;
+        box-sizing: border-box;
       }
       .sig-table th {
         text-align: center;
         background: #f3f4f6;
         font-weight: 700;
+        padding: 6px 8px;
       }
-      .sig-table td { height: 110px; }
+      .sig-cell {
+        height: 120px;
+        max-width: 0;  /* together with table-layout: fixed prevents cell expand */
+      }
       .sig-row {
         margin: 6px 0;
         display: flex;
         align-items: baseline;
         gap: 4px;
+        overflow: hidden;
+        min-width: 0;
       }
-      .sig-row .dot-inline { flex: 1; }
-      .sig-date-row .dot-inline { min-width: 0 !important; }
+      .sig-label {
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .sig-fill {
+        flex: 1;
+        min-width: 0;
+        border-bottom: 1px dotted #000;
+        padding: 0 4px;
+        overflow: hidden;
+      }
+      .sig-text {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 500;
+      }
+      .sig-date-row { gap: 2px; }
+      .sig-date-slot {
+        flex: 1;
+        min-width: 0;
+        border-bottom: 1px dotted #000;
+        height: 1em;
+      }
+      .sig-slash { flex-shrink: 0; }
 
       /* Footer */
       .page-footer {
