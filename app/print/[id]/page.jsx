@@ -35,12 +35,11 @@ export default function PrintRequest({ params }) {
     return () => { cancelled = true; };
   }, [params.id]);
 
-  // Auto-print if ?print=1
   React.useEffect(() => {
     if (!ready || !req) return;
     const sp = new URLSearchParams(window.location.search);
     if (sp.get("print") === "1") {
-      const t = setTimeout(() => window.print(), 400);
+      const t = setTimeout(() => window.print(), 500);
       return () => clearTimeout(t);
     }
   }, [ready, req]);
@@ -52,168 +51,624 @@ export default function PrintRequest({ params }) {
     return <div style={{ padding: 60, textAlign: "center", fontFamily: "sans-serif" }}>ไม่พบเอกสาร {params.id}</div>;
   }
 
-  const requester = usersMap[req.requester] || { nameTh: req.requester, dept: "", titleTh: "" };
-  const payload = req.payload || {};
-  const sch = payload.sch || payload;
-  const sections = tmpl?.sections || [];
+  // Route to template-specific layout
+  if (req.template === "FM-IT-01-01") {
+    return <FormIT0101 req={req} tmpl={tmpl} usersMap={usersMap} />;
+  }
+
+  // Generic fallback for forms not yet customized
+  return <GenericPrint req={req} tmpl={tmpl} usersMap={usersMap} />;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FM-IT-01-01 : แบบฟอร์มขอใช้ ระบบ/อุปกรณ์
+   ═══════════════════════════════════════════════════════════════ */
+function FormIT0101({ req, tmpl, usersMap }) {
+  const sch = req.payload?.sch || req.payload || {};
+  const requester = usersMap[req.requester] || {};
+  const steps = req.steps || [];
+  const approver = steps[1] ? usersMap[steps[1].user] : null;
+  const itStaff = steps[steps.length - 1] ? usersMap[steps[steps.length - 1].user] : null;
+
+  const docNo = req.id;
+  const fmtDate = (d) => {
+    if (!d) return "";
+    try {
+      const parts = String(d).slice(0, 10).split("-");
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return d;
+    } catch { return d; }
+  };
+
+  // Convenience helpers
+  const cb = (v) => (v ? "☑" : "☐");
+  const checked = (id) => {
+    const v = sch[id];
+    return v && typeof v === "object" ? v.checked === true : v === true;
+  };
+  const subV = (id, subId) => {
+    const v = sch[id];
+    if (!v || typeof v !== "object") return null;
+    return v.sub?.[subId];
+  };
 
   return (
     <>
       <PrintStyles />
-      <div className="page">
+      <div className="paper">
         <div className="no-print toolbar">
           <button onClick={() => window.print()}>🖨️ พิมพ์ / บันทึกเป็น PDF</button>
           <button onClick={() => window.close()}>ปิดหน้านี้</button>
         </div>
 
-        <header className="doc-header">
-          <div className="header-meta">
-            <div className="row"><span>เลขที่เอกสาร:</span><b>{req.id}</b></div>
-            <div className="row"><span>รหัสฟอร์ม:</span><b>{tmpl?.code || req.template}</b></div>
-            <div className="row"><span>Revision:</span><b>00</b></div>
-            <div className="row"><span>บังคับใช้:</span><b>01/03/2569</b></div>
-          </div>
-          <div className="header-logo">
-            <div className="logo-circle">TTM</div>
-            <div className="logo-name">Talk to Me Co., Ltd.</div>
-          </div>
-        </header>
+        {/* ─── PAGE 1 ─── */}
+        <Page pageNum={1} totalPages={2}>
+          <DocHeader />
 
-        <h1 className="doc-title">{tmpl?.titleTh || "แบบฟอร์มคำขอ"}</h1>
-        <div className="doc-subtitle">{tmpl?.titleEn || ""}</div>
+          <h1 className="doc-title">แบบฟอร์มขอใช้ ระบบ/อุปกรณ์</h1>
+          <div className="doc-no-line">
+            เลขที่เอกสาร <span className="doc-no-value">{docNo}</span>
+          </div>
 
-        {sections.map(sec => (
-          <section key={sec.id} className="doc-section">
-            <h2>{sec.titleTh}</h2>
-            <div className="field-grid">
-              {(sec.fields || []).map(f => (
-                <FieldRow key={f.id} field={f} value={sch[f.id]} />
-              ))}
+          {/* Section 1: ข้อมูลพนักงาน */}
+          <div className="sec-title">ส่วนที่ 1 : ข้อมูลพนักงาน</div>
+          <div className="sec-body">
+            <div className="line">
+              <Field label="ชื่อ-นามสกุล" value={sch.employeeName || requester.nameTh} width="65%" />
+              <Field label="รหัสพนักงาน" value={sch.employeeId || requester.id} width="33%" />
             </div>
-          </section>
-        ))}
-
-        <section className="doc-section">
-          <h2>การลงนามอนุมัติ</h2>
-          <div className="signatures">
-            {(req.steps || []).map((s, i) => {
-              const u = usersMap[s.user] || { nameTh: s.user || "—", titleTh: "" };
-              return (
-                <div key={i} className="signature-box">
-                  <div className="sig-num">{i === 0 ? "ผู้แจ้ง" : `ผู้อนุมัติคนที่ ${i}`}</div>
-                  <div className="sig-line">
-                    {s.signed && <span className="sig-mark">✓ ลงนามแล้ว</span>}
-                  </div>
-                  <div className="sig-name">{u.nameTh}</div>
-                  <div className="sig-role">{s.role}</div>
-                  <div className="sig-date">{s.at || "_________________"}</div>
-                </div>
-              );
-            })}
+            <div className="line">
+              <Field label="ตำแหน่ง" value={sch.position || requester.titleTh} width="32%" />
+              <Field label="ฝ่ายงาน" value={sch.department || requester.dept} width="32%" />
+              <Field label="ส่วนงาน" value={sch.section} width="33%" />
+            </div>
+            <div className="line">
+              <Field label="วันที่แจ้ง" value={fmtDate(sch.dateRequest)} width="32%" />
+              <Field label="วันที่ต้องการให้มีผล" value={fmtDate(sch.dateEffective)} width="32%" />
+              <Field label="เวลา" value={sch.time} width="33%" />
+            </div>
           </div>
-        </section>
 
-        <footer className="doc-footer">
-          <div>ออกโดยระบบ TTMFlow · {tmpl?.code} · Rev 00 · ISO 9001:2015</div>
-          <div className="doc-stamp">เอกสารฉบับนี้ผลิตและตรวจรับรองตามมาตรฐาน ISO 9001</div>
-        </footer>
+          {/* Section 2: ประเภทพนักงาน */}
+          <div className="sec-title">ส่วนที่ 2 : ประเภทพนักงาน</div>
+          <div className="sec-body">
+            <div className="cb-line">{cb(sch.employeeType === "permanent")} ประจำ</div>
+            <div className="cb-line">{cb(sch.employeeType === "contract")} สัญญาจ้าง</div>
+          </div>
+
+          {/* Section 3: ประเภทการร้องขอ */}
+          <div className="sec-title">ส่วนที่ 3 : ประเภทการร้องขอ</div>
+          <div className="sec-body">
+            <div className="cb-line">{cb(sch.requestKind === "use")} ใช้งาน</div>
+            <div className="cb-line">{cb(sch.requestKind === "cancel")} ยกเลิก</div>
+            <div className="cb-line">{cb(sch.requestKind === "transfer")} โอนสิทธิ์</div>
+          </div>
+
+          {/* Section 4: รายการสิทธิ์และอุปกรณ์ */}
+          <div className="sec-title">ส่วนที่ 4 : รายการสิทธิ์และอุปกรณ์</div>
+          <div className="sec-body">
+            {/* Email */}
+            <div className="cb-line">{cb(checked("item_email"))} <b>Email บริษัท</b></div>
+            <div className="indent">
+              <div className="sub-line">
+                <span>ระบุชื่อ Email ที่ต้องการ</span>
+                <DotInline value={subV("item_email", "emailAddr")} width="50%" />
+                <span>@talktome.co.th</span>
+                <span className="hint">(โปรดระบุ)</span>
+              </div>
+              <div className="sub-line"><b>สิทธิ์ที่ต้องการ</b> <span className="hint">(โปรดระบุ)</span></div>
+              <div className="indent">
+                <div className="cb-line">{cb(subV("item_email", "emailRole") === "user")} User</div>
+                <div className="cb-line">{cb(subV("item_email", "emailRole") === "admin")} Administrator</div>
+              </div>
+              <div className="sub-line"><b>ขนาดพื้นที่</b> <span className="hint">(โปรดระบุถ้ามีที่ต้องการใช้งาน)</span></div>
+              <div className="indent">
+                <div className="cb-line">{cb(subV("item_email", "emailSize") === "5")} 5 GB</div>
+                <div className="cb-line">{cb(subV("item_email", "emailSize") === "10")} 10 GB</div>
+                <div className="cb-line">{cb(subV("item_email", "emailSize") === "custom")} ............ GB</div>
+              </div>
+              <div className="sub-line"><b>ฟีเจอร์ปฏิทิน</b> <span className="hint">(โปรดระบุ)</span></div>
+              <div className="indent">
+                <div className="cb-line">{cb(subV("item_email", "emailCalendar") === true || subV("item_email", "emailCalendar") === "yes")} ต้องการฟีเจอร์ปฏิทิน</div>
+                <div className="cb-line">{cb(subV("item_email", "emailCalendar") === false || subV("item_email", "emailCalendar") === "no")} ไม่ต้องการฟีเจอร์ปฏิทิน</div>
+              </div>
+            </div>
+
+            {/* Group Email */}
+            <div className="cb-line">{cb(checked("item_group"))} <b>Group Email (สำหรับแจกจ่าย)</b> <span className="hint">(โปรดระบุสมาชิก/ขึ้นกลุ่มแจกจ่าย)</span></div>
+            <div className="indent">
+              {[0, 1, 2].map(i => {
+                const members = (subV("item_group", "members") || "").split("\n");
+                return (
+                  <div key={i} className="sub-line">
+                    <span>Member {i + 1}</span>
+                    <DotInline value={members[i] || ""} width="60%" />
+                    <span>@talktome.co.th</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <PageFooter pageNum={1} totalPages={2} />
+        </Page>
+
+        {/* ─── PAGE 2 ─── */}
+        <Page pageNum={2} totalPages={2}>
+          <DocHeader />
+
+          <div className="sec-body" style={{ marginTop: 8 }}>
+            {/* PBX */}
+            <div className="cb-line">{cb(checked("item_pbx"))} <b>User ระบบโทรศัพท์ PBX (เบอร์ต่อ Extension)</b> <span className="hint">(โปรดระบุสิทธิ์ที่ต้องการ)</span></div>
+            <div className="indent">
+              <div className="sub-line"><b>สิทธิ์ที่ต้องการ</b></div>
+              <div className="indent">
+                <div className="cb-line">{cb(subV("item_pbx", "pbxRole") === "user")} User</div>
+                <div className="cb-line">{cb(subV("item_pbx", "pbxRole") === "supervisor")} Supervisor</div>
+                <div className="cb-line">{cb(subV("item_pbx", "pbxRole") === "admin")} Administrator</div>
+              </div>
+            </div>
+
+            <div className="cb-line">{cb(checked("item_pc"))} เครื่องคอมพิวเตอร์รูปแบบตั้งโต๊ะส่วนบุคคล (PC - Personal)</div>
+            <div className="cb-line">{cb(checked("item_notebook"))} เครื่องคอมพิวเตอร์รูปแบบเเบบพกพาส่วนบุคคล (Notebook - Personal)</div>
+            <div className="cb-line">{cb(checked("item_headset"))} ชุดหูฟังส่วนบุคคล (Headset - Personal)</div>
+
+            <div className="cb-line">{cb(checked("item_vpn"))} <b>VPN Account (สำหรับ Work from home)</b></div>
+            <div className="indent">
+              <div className="sub-line">
+                <span>สิทธิ์ในการเข้าถึงระบบ โครงการ</span>
+                <DotInline value={subV("item_project", "project") || sch.project} width="60%" />
+                <span className="hint">โปรดระบุ</span>
+              </div>
+            </div>
+
+            <div className="cb-line">{cb(checked("item_msoffice"))} License MS Office</div>
+            <div className="cb-line">{cb(checked("item_idcard"))} บัตรพนักงาน + สายคล้อง</div>
+            <div className="cb-line">{cb(false)} โต๊ะ + เก้าอี้</div>
+            <div className="cb-line">{cb(checked("item_other"))} อื่นๆ (ระบุ) <DotInline value={subV("item_other", "other")} width="55%" /></div>
+          </div>
+
+          {/* Section 5: จุดประสงค์ */}
+          <div className="sec-title">ส่วนที่ 5 : จุดประสงค์ในการขอ</div>
+          <div className="sec-body">
+            <PurposeLines text={sch.purpose} />
+          </div>
+
+          {/* Signature table */}
+          <table className="sig-table">
+            <thead>
+              <tr>
+                <th>ผู้แจ้งเรื่อง</th>
+                <th>เจ้าหน้าที่ไอที</th>
+                <th>ผู้รับมอบ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div className="sig-row">ลงชื่อ : <DotInline value={requester.nameTh} width="60%" /></div>
+                  <div className="sig-row">ตำแหน่ง : <DotInline value={requester.titleTh} width="60%" /></div>
+                  <div className="sig-row sig-date-row">วันที่ : <DotInline width="15%" /> / <DotInline width="15%" /> / <DotInline width="15%" /></div>
+                </td>
+                <td>
+                  <div className="sig-row">ลงชื่อ : <DotInline value={itStaff?.nameTh} width="60%" /></div>
+                  <div className="sig-row">ตำแหน่ง : <DotInline value={itStaff?.titleTh} width="60%" /></div>
+                  <div className="sig-row sig-date-row">วันที่ : <DotInline width="15%" /> / <DotInline width="15%" /> / <DotInline width="15%" /></div>
+                </td>
+                <td>
+                  <div className="sig-row">ลงชื่อ : <DotInline value={approver?.nameTh} width="60%" /></div>
+                  <div className="sig-row">ตำแหน่ง : <DotInline value={approver?.titleTh} width="60%" /></div>
+                  <div className="sig-row sig-date-row">วันที่ : <DotInline width="15%" /> / <DotInline width="15%" /> / <DotInline width="15%" /></div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <PageFooter pageNum={2} totalPages={2} />
+        </Page>
       </div>
     </>
   );
 }
 
-function FieldRow({ field, value }) {
-  const label = field.labelTh || field.labelEn || field.id;
-  const hasOptions = Array.isArray(field.options) && field.options.length > 0;
-
-  let display = "—";
-
-  if (field.type === "radio" && hasOptions) {
-    const opt = field.options.find(o => o.id === value);
-    display = opt ? opt.labelTh : "—";
-  } else if (field.type === "toggle") {
-    display = value === true || value === "yes" || value === "true" ? "✓ ใช้" : "ไม่ใช้";
-  } else if (field.type === "checkbox" && hasOptions) {
-    const arr = Array.isArray(value) ? value : [];
-    display = arr.map(id => field.options.find(o => o.id === id)?.labelTh).filter(Boolean).join(", ") || "—";
-  } else if (field.type === "checkbox") {
-    const checked = value && typeof value === "object" ? value.checked === true : value === true;
-    if (!checked) {
-      display = "☐ ไม่เลือก";
-    } else if (Array.isArray(field.subFields) && field.subFields.length > 0) {
-      const sub = (value && typeof value === "object" ? value.sub : null) || {};
-      const parts = field.subFields.map(sf => {
-        const sv = sub[sf.id];
-        if (sv === undefined || sv === null || sv === "") return null;
-        if (sf.type === "radio" && Array.isArray(sf.options)) {
-          const o = sf.options.find(x => x.id === sv);
-          return o ? `${sf.labelTh}: ${o.labelTh}` : null;
-        }
-        return `${sf.labelTh}: ${sv}`;
-      }).filter(Boolean);
-      display = parts.length ? `☑ ${parts.join(" · ")}` : "☑ เลือก";
-    } else {
-      display = "☑ เลือก";
-    }
-  } else if (field.type === "select" && hasOptions) {
-    const opt = field.options.find(o => o.id === value);
-    display = opt ? opt.labelTh : "—";
-  } else {
-    display = value || "—";
-  }
-
-  const span = field.span || 1;
-  const isLong = field.type === "textarea" || span >= 3;
+/* ═══════════════════════════════════════════════════════════════
+   Generic fallback (สำหรับฟอร์มอื่นที่ยังไม่ทำ layout เฉพาะ)
+   ═══════════════════════════════════════════════════════════════ */
+function GenericPrint({ req, tmpl, usersMap }) {
+  const sch = req.payload?.sch || req.payload || {};
+  const sections = tmpl?.sections || [];
+  const requester = usersMap[req.requester] || {};
 
   return (
-    <div className={`field-row ${isLong ? "full" : ""}`} style={{ gridColumn: `span ${Math.min(span, 3)}` }}>
-      <div className="field-label">{label}</div>
-      <div className="field-value">{display}</div>
+    <>
+      <PrintStyles />
+      <div className="paper">
+        <div className="no-print toolbar">
+          <button onClick={() => window.print()}>🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+          <button onClick={() => window.close()}>ปิดหน้านี้</button>
+        </div>
+        <Page pageNum={1} totalPages={1}>
+          <DocHeader docCode={tmpl?.code} formTitle={tmpl?.titleTh} />
+          <h1 className="doc-title">{tmpl?.titleTh || "แบบฟอร์มคำขอ"}</h1>
+          <div className="doc-no-line">เลขที่เอกสาร <span className="doc-no-value">{req.id}</span></div>
+
+          {sections.map(sec => (
+            <React.Fragment key={sec.id}>
+              <div className="sec-title">{sec.titleTh}</div>
+              <div className="sec-body">
+                {(sec.fields || []).map(f => (
+                  <GenericFieldRow key={f.id} field={f} value={sch[f.id]} />
+                ))}
+              </div>
+            </React.Fragment>
+          ))}
+
+          <PageFooter pageNum={1} totalPages={1} />
+        </Page>
+      </div>
+    </>
+  );
+}
+
+function GenericFieldRow({ field, value }) {
+  const label = field.labelTh;
+  const hasOpts = Array.isArray(field.options) && field.options.length > 0;
+  if (field.type === "radio" && hasOpts) {
+    return (
+      <div className="line" style={{ marginBottom: 4 }}>
+        <span className="hint" style={{ marginRight: 12 }}>{label}:</span>
+        {field.options.map(o => (
+          <span key={o.id} style={{ marginRight: 16 }}>{value === o.id ? "☑" : "☐"} {o.labelTh}</span>
+        ))}
+      </div>
+    );
+  }
+  if (field.type === "checkbox" && !hasOpts) {
+    const checked = value && typeof value === "object" ? value.checked === true : value === true;
+    return <div className="cb-line">{checked ? "☑" : "☐"} {label}</div>;
+  }
+  return (
+    <div className="sub-line">
+      <span>{label}:</span>
+      <DotInline value={String(value || "")} width="70%" />
     </div>
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   Building blocks
+   ═══════════════════════════════════════════════════════════════ */
+function Page({ children }) {
+  return <div className="page">{children}</div>;
+}
+
+function DocHeader() {
+  return (
+    <table className="header-table">
+      <tbody>
+        <tr>
+          <td rowSpan={3} className="logo-cell">
+            <div className="logo-wrap">
+              <div className="logo-mark">
+                <span>Talk to</span>
+                <span>Me Co., Ltd.</span>
+              </div>
+              <div className="logo-sub">บริษัท ทอล์คทูมี จำกัด</div>
+            </div>
+          </td>
+          <td className="hl">ชนิดเอกสาร :</td>
+          <td className="hv">แบบฟอร์ม</td>
+          <td className="hl">รหัสเอกสาร :</td>
+          <td className="hv">FM-IT-01-01</td>
+        </tr>
+        <tr>
+          <td className="hl">หน่วยงาน :</td>
+          <td className="hv">เทคโนโลยีสารสนเทศ</td>
+          <td className="hl">แก้ไขครั้งที่ :</td>
+          <td className="hv">00</td>
+        </tr>
+        <tr>
+          <td className="hl">หัวข้อเรื่อง :</td>
+          <td className="hv">แบบฟอร์มขอใช้ ระบบ/อุปกรณ์</td>
+          <td className="hl">วันที่บังคับใช้ :</td>
+          <td className="hv">01/03/2569</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function PageFooter({ pageNum, totalPages }) {
+  return (
+    <div className="page-footer">
+      <div className="footer-disclaimer">
+        ข้าพเจ้าได้รับทราบ ลำดับขั้นตอนของเอกสารตามที่ระบุไว้แล้วได้ปฏิบัติงานเป็นบรรลุตามที่กำหนดให้ปฏิบัติเรียบร้อย
+      </div>
+      <div className="footer-page">หน้า {pageNum} จาก {totalPages}</div>
+    </div>
+  );
+}
+
+function Field({ label, value, width }) {
+  return (
+    <div className="field" style={{ width }}>
+      <span className="field-lbl">{label} :</span>
+      <span className="field-dots">
+        <span className="field-val">{value || ""}</span>
+      </span>
+    </div>
+  );
+}
+
+function DotInline({ value, width = "30%" }) {
+  return (
+    <span className="dot-inline" style={{ minWidth: width }}>
+      <span className="dot-val">{value || ""}</span>
+    </span>
+  );
+}
+
+function PurposeLines({ text }) {
+  const lines = String(text || "").split("\n");
+  // Render 4 dotted lines; fill in from text
+  return (
+    <>
+      {[0, 1, 2, 3].map(i => (
+        <div key={i} className="purpose-line">
+          <span className="purpose-val">{lines[i] || ""}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Styles — A4 + Sarabun + match PDF
+   ═══════════════════════════════════════════════════════════════ */
 function PrintStyles() {
   return (
     <style jsx global>{`
       @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+
       * { box-sizing: border-box; }
-      html, body { margin: 0; padding: 0; background: #f3f4f6; font-family: 'Sarabun', 'Tahoma', sans-serif; color: #111; }
-      .page { max-width: 800px; margin: 24px auto; background: #fff; padding: 48px 56px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #e5e7eb;
+        font-family: 'Sarabun', 'Tahoma', sans-serif;
+        color: #000;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .paper { padding: 0; }
+      .page {
+        background: #fff;
+        width: 210mm;
+        min-height: 297mm;
+        margin: 16px auto;
+        padding: 14mm 16mm 18mm 16mm;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+        position: relative;
+      }
+
       @media print {
+        @page { size: A4; margin: 0; }
         html, body { background: #fff; }
-        .page { box-shadow: none; max-width: 100%; margin: 0; padding: 24px 32px; }
+        .paper { padding: 0; }
+        .page {
+          margin: 0;
+          width: 210mm;
+          min-height: 297mm;
+          box-shadow: none;
+          page-break-after: always;
+          padding: 12mm 14mm 14mm 14mm;
+        }
+        .page:last-child { page-break-after: auto; }
         .no-print { display: none !important; }
       }
-      .toolbar { position: sticky; top: 0; background: #1f6feb; padding: 12px 20px; margin: -24px -56px 32px; display: flex; gap: 12px; z-index: 5; }
-      .toolbar button { padding: 8px 16px; border: 0; border-radius: 6px; background: #fff; color: #1f6feb; font-weight: 600; cursor: pointer; font-size: 14px; }
+
+      /* Toolbar */
+      .toolbar {
+        position: sticky;
+        top: 0;
+        background: #1f6feb;
+        padding: 12px 20px;
+        display: flex;
+        gap: 12px;
+        z-index: 100;
+      }
+      .toolbar button {
+        padding: 8px 16px;
+        border: 0;
+        border-radius: 6px;
+        background: #fff;
+        color: #1f6feb;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: inherit;
+      }
       .toolbar button:hover { background: #f3f4f6; }
-      .doc-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 24px; }
-      .header-meta { font-size: 11px; }
-      .header-meta .row { display: flex; gap: 8px; }
-      .header-meta .row span { width: 100px; color: #555; }
-      .header-meta .row b { color: #111; }
-      .header-logo { text-align: right; }
-      .logo-circle { width: 48px; height: 48px; background: #1f6feb; color: #fff; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
-      .logo-name { font-size: 11px; color: #555; margin-top: 4px; }
-      .doc-title { font-size: 22px; margin: 0 0 4px; text-align: center; }
-      .doc-subtitle { font-size: 13px; text-align: center; color: #555; margin-bottom: 28px; }
-      .doc-section { margin-bottom: 24px; page-break-inside: avoid; }
-      .doc-section h2 { font-size: 14px; background: #f1f5f9; padding: 8px 12px; border-left: 4px solid #1f6feb; margin: 0 0 10px; }
-      .field-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 16px; }
-      .field-row { font-size: 12px; padding: 6px 0; border-bottom: 1px dotted #ddd; }
-      .field-row.full { grid-column: 1 / -1; }
-      .field-label { color: #555; font-size: 11px; margin-bottom: 2px; }
-      .field-value { color: #111; font-weight: 500; min-height: 18px; word-break: break-word; }
-      .signatures { display: grid; grid-template-columns: repeat(2, 1fr); gap: 32px 24px; margin-top: 16px; }
-      .signature-box { border: 1px solid #ddd; padding: 16px; text-align: center; min-height: 130px; display: flex; flex-direction: column; }
-      .sig-num { font-size: 11px; color: #555; }
-      .sig-line { flex: 1; border-bottom: 1px solid #111; margin: 24px 16px 12px; position: relative; }
-      .sig-mark { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); color: #0d9488; font-weight: 600; font-size: 11px; }
-      .sig-name { font-weight: 600; font-size: 13px; }
-      .sig-role { font-size: 11px; color: #555; margin-top: 2px; }
-      .sig-date { font-size: 11px; color: #555; margin-top: 4px; }
-      .doc-footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 10px; color: #777; display: flex; justify-content: space-between; }
+
+      /* Header table */
+      .header-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 8px;
+      }
+      .header-table td {
+        border: 1px solid #000;
+        padding: 4px 8px;
+        font-size: 12px;
+      }
+      .logo-cell {
+        width: 22%;
+        text-align: center;
+        vertical-align: middle;
+        padding: 8px !important;
+      }
+      .logo-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+      }
+      .logo-mark {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: #5cc3d3;
+        color: #fff;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        font-weight: 700;
+        font-size: 11px;
+        line-height: 1.2;
+      }
+      .logo-sub {
+        font-size: 10px;
+        color: #000;
+      }
+      .hl { width: 14%; white-space: nowrap; }
+      .hv { width: 24%; }
+
+      /* Title */
+      .doc-title {
+        text-align: center;
+        font-size: 18px;
+        font-weight: 700;
+        margin: 16px 0 8px;
+      }
+      .doc-no-line {
+        text-align: right;
+        font-size: 12px;
+        margin-bottom: 14px;
+      }
+      .doc-no-value {
+        display: inline-block;
+        min-width: 200px;
+        border-bottom: 1px dotted #000;
+        text-align: center;
+        font-weight: 600;
+      }
+
+      /* Section title */
+      .sec-title {
+        font-weight: 700;
+        margin: 12px 0 4px;
+        font-size: 13.5px;
+      }
+      .sec-body {
+        margin-bottom: 6px;
+      }
+
+      /* Field with dotted underline */
+      .line {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .field {
+        display: inline-flex;
+        align-items: baseline;
+        font-size: 12.5px;
+      }
+      .field-lbl { white-space: nowrap; margin-right: 4px; }
+      .field-dots {
+        flex: 1;
+        border-bottom: 1px dotted #000;
+        min-width: 60px;
+        padding: 0 4px;
+      }
+      .field-val {
+        font-weight: 500;
+      }
+
+      /* Checkbox lines */
+      .cb-line {
+        font-size: 12.5px;
+        padding: 1px 0;
+      }
+      .indent {
+        padding-left: 24px;
+      }
+      .sub-line {
+        font-size: 12.5px;
+        padding: 1px 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 4px;
+      }
+      .hint { color: #1f6feb; font-size: 12px; }
+
+      /* Inline dotted field */
+      .dot-inline {
+        display: inline-block;
+        border-bottom: 1px dotted #000;
+        padding: 0 4px;
+        min-height: 1em;
+        line-height: 1;
+      }
+      .dot-val { font-weight: 500; }
+
+      /* Purpose lines */
+      .purpose-line {
+        border-bottom: 1px dotted #000;
+        height: 1.6em;
+        margin-bottom: 4px;
+        padding: 0 4px;
+      }
+      .purpose-line:first-child .purpose-val {
+        font-weight: 500;
+      }
+
+      /* Signature table */
+      .sig-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      .sig-table th, .sig-table td {
+        border: 1px solid #000;
+        padding: 10px 14px;
+        font-size: 12.5px;
+        vertical-align: top;
+        text-align: left;
+      }
+      .sig-table th {
+        text-align: center;
+        background: #f3f4f6;
+        font-weight: 700;
+      }
+      .sig-table td { height: 110px; }
+      .sig-row {
+        margin: 6px 0;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+      }
+      .sig-row .dot-inline { flex: 1; }
+      .sig-date-row .dot-inline { min-width: 0 !important; }
+
+      /* Footer */
+      .page-footer {
+        position: absolute;
+        bottom: 10mm;
+        left: 16mm;
+        right: 16mm;
+        border-top: 1px solid #000;
+        padding-top: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+      }
+      .footer-disclaimer { flex: 1; padding-right: 16px; }
+      .footer-page { white-space: nowrap; font-weight: 500; }
     `}</style>
   );
 }
