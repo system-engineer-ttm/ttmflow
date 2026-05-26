@@ -138,7 +138,7 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
                 <Icon name="signature" size={18} />
                 <div>
                   <strong>{lang === "th" ? "การดำเนินการของคุณ" : "Your action"}</strong>
-                  <div className="ttm-muted ttm-small">{lang === "th" ? `ขั้นที่ ${req.currentStep + 1} / ${req.steps.length}` : `Step ${req.currentStep + 1} / ${req.steps.length}`}</div>
+                  <div className="ttm-muted ttm-small">{lang === "th" ? `ขั้นที่ ${(req.currentStep ?? 0) + 1} / ${(req.steps || []).length}` : `Step ${(req.currentStep ?? 0) + 1} / ${(req.steps || []).length}`}</div>
                 </div>
               </div>
               <Field label={lang === "th" ? "ความเห็น" : "Comment"}>
@@ -395,11 +395,20 @@ function SignatureChip({ user, variant = "drawn" }) {
 }
 
 function PayloadView({ req, lang }) {
+  const { FORM_TEMPLATES } = useAppData();
   const p = req.payload || {};
+  const tmpl = FORM_TEMPLATES.find(f => f.code === req.template);
+
+  // If the request was created via dynamic schema, render from template sections
+  if (p.sch && tmpl && Array.isArray(tmpl.sections) && tmpl.sections.length > 0) {
+    return <DynamicPayloadView sections={tmpl.sections} sch={p.sch} lang={lang} />;
+  }
+
   if (req.template === "FM-IT-01-01") {
+    const itemsList = Array.isArray(p.items) ? p.items : [];
     return (
       <div className="ttm-payload">
-        <KV k={lang === "th" ? "พนักงานปลายทาง" : "Target employee"} v={`${p.employeeName} · ${p.employeeId}`} />
+        <KV k={lang === "th" ? "พนักงานปลายทาง" : "Target employee"} v={`${p.employeeName || "—"} · ${p.employeeId || "—"}`} />
         <KV k={lang === "th" ? "ตำแหน่ง" : "Position"} v={p.position} />
         <KV k={lang === "th" ? "แผนก" : "Department"} v={p.department} />
         <KV k={lang === "th" ? "วันที่ต้องการให้มีผล" : "Effective"} v={p.effectiveDate} />
@@ -408,7 +417,7 @@ function PayloadView({ req, lang }) {
         <div className="ttm-payload-items">
           <div className="ttm-payload-label">{lang === "th" ? "รายการที่ขอ" : "Items"}</div>
           <div className="ttm-payload-chips">
-            {(p.items || []).map((i, idx) => <span key={idx} className="ttm-chip">{i}</span>)}
+            {itemsList.map((i, idx) => <span key={idx} className="ttm-chip">{i}</span>)}
           </div>
         </div>
         <KV k={lang === "th" ? "จุดประสงค์" : "Purpose"} v={p.purpose} freeform />
@@ -473,7 +482,67 @@ function KV({ k, v, freeform }) {
   return (
     <div className={cls("ttm-kv", freeform && "is-freeform")}>
       <div className="ttm-kv-k">{k}</div>
-      <div className="ttm-kv-v">{v}</div>
+      <div className="ttm-kv-v">{v ?? "—"}</div>
+    </div>
+  );
+}
+
+function DynamicPayloadView({ sections, sch, lang }) {
+  const fmt = (f) => {
+    const v = sch[f.id];
+    const hasOpts = Array.isArray(f.options) && f.options.length > 0;
+    if (f.type === "radio" && hasOpts) {
+      const o = f.options.find(o => o.id === v);
+      return o ? (lang === "th" ? o.labelTh : o.labelEn) : "—";
+    }
+    if (f.type === "toggle") {
+      const on = v === true || v === "yes" || v === "true";
+      return on ? (lang === "th" ? "ใช้" : "Yes") : (lang === "th" ? "ไม่ใช้" : "No");
+    }
+    if (f.type === "checkbox" && hasOpts) {
+      const arr = Array.isArray(v) ? v : [];
+      return arr.map(id => f.options.find(o => o.id === id)?.[lang === "th" ? "labelTh" : "labelEn"]).filter(Boolean).join(", ") || "—";
+    }
+    if (f.type === "checkbox") {
+      const checked = v && typeof v === "object" ? v.checked === true : v === true;
+      if (!checked) return lang === "th" ? "ไม่เลือก" : "Not selected";
+      if (Array.isArray(f.subFields) && f.subFields.length > 0) {
+        const sub = (v && typeof v === "object" ? v.sub : null) || {};
+        const parts = f.subFields.map(sf => {
+          const sv = sub[sf.id];
+          if (sv === undefined || sv === null || sv === "") return null;
+          if (sf.type === "radio" && Array.isArray(sf.options)) {
+            const opt = sf.options.find(o => o.id === sv);
+            return opt ? `${lang === "th" ? sf.labelTh : sf.labelEn}: ${lang === "th" ? opt.labelTh : opt.labelEn}` : null;
+          }
+          return `${lang === "th" ? sf.labelTh : sf.labelEn}: ${sv}`;
+        }).filter(Boolean);
+        return parts.length ? `✓ ${parts.join(" · ")}` : (lang === "th" ? "เลือก" : "Selected");
+      }
+      return lang === "th" ? "✓ เลือก" : "✓ Selected";
+    }
+    if (f.type === "select" && hasOpts) {
+      const o = f.options.find(o => o.id === v);
+      return o ? (lang === "th" ? o.labelTh : o.labelEn) : "—";
+    }
+    return v || "—";
+  };
+
+  return (
+    <div className="ttm-payload">
+      {sections.map(sec => (
+        <div key={sec.id} style={{ marginBottom: "1rem" }}>
+          <div className="ttm-payload-label" style={{ fontWeight: 600, marginBottom: 6 }}>
+            {lang === "th" ? sec.titleTh : sec.titleEn}
+          </div>
+          {(sec.fields || []).map(f => (
+            <KV key={f.id}
+              k={lang === "th" ? f.labelTh : f.labelEn}
+              v={fmt(f)}
+              freeform={f.type === "textarea"} />
+          ))}
+        </div>
+      ))}
     </div>
   );
 }
