@@ -477,30 +477,51 @@ function StepDynamicSchema({ lang, tmpl, state, set }) {
 
 function DynField({ field, lang, value, onChange }) {
   const label = lang === "th" ? field.labelTh : field.labelEn;
+  const hasOptions = Array.isArray(field.options) && field.options.length > 0;
+  const hasSubFields = Array.isArray(field.subFields) && field.subFields.length > 0;
+
+  // textarea
   if (field.type === "textarea") {
     return (
       <Field label={label} required={field.required} hint={field.hint} span={field.span || 3}>
-        <Textarea value={value || ""} onChange={e => onChange(e.target.value)} />
+        <Textarea value={value || ""} onChange={e => onChange(e.target.value)} rows={field.rows || 3} />
       </Field>
     );
   }
-  if (field.type === "radio") {
+
+  // radio with options
+  if (field.type === "radio" && hasOptions) {
     return (
       <Field label={label} required={field.required} hint={field.hint} span={field.span || 3}>
         <div className="ttm-radio-row">
-          {(field.options || []).map(o => (
+          {field.options.map(o => (
             <Check key={o.id} radio checked={value === o.id} onChange={() => onChange(o.id)} label={lang === "th" ? o.labelTh : o.labelEn} />
           ))}
         </div>
       </Field>
     );
   }
-  if (field.type === "checkbox") {
+
+  // toggle (boolean Yes/No)
+  if (field.type === "toggle") {
+    const on = value === true || value === "yes" || value === "true";
+    return (
+      <Field label={label} required={field.required} hint={field.hint} span={field.span || 1}>
+        <div className="ttm-radio-row">
+          <Check radio checked={on} onChange={() => onChange(true)} label={lang === "th" ? "ใช้" : "Yes"} />
+          <Check radio checked={!on} onChange={() => onChange(false)} label={lang === "th" ? "ไม่ใช้" : "No"} />
+        </div>
+      </Field>
+    );
+  }
+
+  // checkbox with options (multi-select)
+  if (field.type === "checkbox" && hasOptions) {
     const arr = Array.isArray(value) ? value : [];
     return (
       <Field label={label} required={field.required} hint={field.hint} span={field.span || 3}>
         <div className="ttm-radio-row">
-          {(field.options || []).map(o => (
+          {field.options.map(o => (
             <Check key={o.id}
               checked={arr.includes(o.id)}
               onChange={e => onChange(e.target.checked ? [...arr, o.id] : arr.filter(x => x !== o.id))}
@@ -510,6 +531,35 @@ function DynField({ field, lang, value, onChange }) {
       </Field>
     );
   }
+
+  // single checkbox (boolean) — optionally with sub-fields that appear when checked
+  if (field.type === "checkbox") {
+    const checked = value && typeof value === "object" ? value.checked === true : value === true;
+    const sub = (value && typeof value === "object" ? value.sub : null) || {};
+    const updateChecked = (c) => onChange(hasSubFields ? { checked: c, sub } : c);
+    const updateSub = (subId, v) => onChange({ checked: true, sub: { ...sub, [subId]: v } });
+    return (
+      <Field span={field.span || 3}>
+        <div className={cls("ttm-tile", checked && "is-on")}>
+          <div className="ttm-tile-head">
+            <Check checked={checked} onChange={e => updateChecked(e.target.checked)}
+              label={<span><strong>{label}</strong>{field.hint && <span className="ttm-muted"> — {field.hint}</span>}</span>} />
+          </div>
+          {checked && hasSubFields && (
+            <div className="ttm-tile-body">
+              <div className="ttm-form-grid">
+                {field.subFields.map(sf => (
+                  <DynField key={sf.id} field={sf} lang={lang} value={sub[sf.id]} onChange={v => updateSub(sf.id, v)} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Field>
+    );
+  }
+
+  // select
   if (field.type === "select") {
     return (
       <Field label={label} required={field.required} hint={field.hint} span={field.span || 1}>
@@ -520,6 +570,8 @@ function DynField({ field, lang, value, onChange }) {
       </Field>
     );
   }
+
+  // text / date / time / number (default)
   return (
     <Field label={label} required={field.required} hint={field.hint} span={field.span || 1}>
       <Input
@@ -597,18 +649,41 @@ function StepDynamicReview({ lang, state, tmpl }) {
           <ReviewBlock key={sec.id} wide title={lang === "th" ? sec.titleTh : sec.titleEn}
             items={sec.fields.map(f => {
               const v = sch[f.id];
+              const hasOptions = Array.isArray(f.options) && f.options.length > 0;
               let display = v;
-              if (f.type === "radio") {
-                const o = (f.options || []).find(o => o.id === v);
+              if (f.type === "radio" && hasOptions) {
+                const o = f.options.find(o => o.id === v);
                 display = o ? (lang === "th" ? o.labelTh : o.labelEn) : "—";
-              } else if (f.type === "checkbox") {
+              } else if (f.type === "toggle") {
+                const on = v === true || v === "yes" || v === "true";
+                display = on ? (lang === "th" ? "ใช้" : "Yes") : (lang === "th" ? "ไม่ใช้" : "No");
+              } else if (f.type === "checkbox" && hasOptions) {
                 const arr = Array.isArray(v) ? v : [];
                 display = arr.map(id => {
-                  const o = (f.options || []).find(o => o.id === id);
+                  const o = f.options.find(o => o.id === id);
                   return o ? (lang === "th" ? o.labelTh : o.labelEn) : "";
                 }).filter(Boolean).join(", ") || "—";
-              } else if (f.type === "select") {
-                const o = (f.options || []).find(o => o.id === v);
+              } else if (f.type === "checkbox") {
+                // single checkbox (boolean) — may include sub-fields
+                const checked = v && typeof v === "object" ? v.checked === true : v === true;
+                if (!checked) return [lang === "th" ? f.labelTh : f.labelEn, lang === "th" ? "ไม่เลือก" : "Not selected"];
+                if (Array.isArray(f.subFields) && f.subFields.length > 0) {
+                  const sub = (v && typeof v === "object" ? v.sub : null) || {};
+                  const parts = f.subFields.map(sf => {
+                    const sv = sub[sf.id];
+                    if (sv === undefined || sv === null || sv === "") return null;
+                    if (sf.type === "radio" && Array.isArray(sf.options)) {
+                      const opt = sf.options.find(o => o.id === sv);
+                      return opt ? `${lang === "th" ? sf.labelTh : sf.labelEn}: ${lang === "th" ? opt.labelTh : opt.labelEn}` : null;
+                    }
+                    return `${lang === "th" ? sf.labelTh : sf.labelEn}: ${sv}`;
+                  }).filter(Boolean);
+                  display = parts.length ? `✓ ${parts.join(" · ")}` : (lang === "th" ? "เลือก" : "Selected");
+                } else {
+                  display = lang === "th" ? "✓ เลือก" : "✓ Selected";
+                }
+              } else if (f.type === "select" && hasOptions) {
+                const o = f.options.find(o => o.id === v);
                 display = o ? (lang === "th" ? o.labelTh : o.labelEn) : "—";
               }
               return [lang === "th" ? f.labelTh : f.labelEn, display || "—"];
