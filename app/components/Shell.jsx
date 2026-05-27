@@ -6,18 +6,41 @@ import { cls, Avatar } from "./Ui";
 import { ROLE_PERMISSIONS } from "../lib/data";
 import { useAppData } from "../lib/AppDataContext";
 
-export function Sidebar({ lang, route, setRoute, role, t, onLogout }) {
+export function Sidebar({ lang, route, setRoute, role, t, onLogout, currentUser }) {
   const { REQUESTS, FLOW_INSTANCES } = useAppData();
   const reqs = REQUESTS;
-  const pendingForMe = reqs.filter(r => r.status === "pending").length;
-  const myDraft = 2;
-  const itQ = reqs.filter(r => r.status === "inProgress").length;
+  const myId = currentUser?.id;
+
+  // ── My requests: where I am the requester ──
+  const myCount = myId ? reqs.filter(r => r.requester === myId).length : 0;
+
+  // ── Pending approvals: where I'm the assignee of the current step ──
+  const pendingForMe = myId
+    ? reqs.filter(r => {
+        if (r.status !== "pending") return false;
+        const cur = (r.steps || [])[r.currentStep];
+        return cur?.user === myId;
+      }).length
+    : 0;
+
+  // ── IT queue: tasks assigned to me, in progress or queued ──
+  const itQ = myId
+    ? reqs.filter(r => {
+        if (["rejected", "done"].includes(r.status)) return false;
+        return (r.steps || []).some(s => s.user === myId && (s.action === "in_progress" || s.action === "queued"));
+      }).length
+    : 0;
+
+  // ── Active flows: where I am the requester ──
+  const myFlows = myId
+    ? FLOW_INSTANCES.filter(f => f.status === "active" && f.requester === myId).length
+    : 0;
 
   const items = [
     { id: "dashboard",    icon: "home",        label: t.nav.dashboard },
-    { id: "flows",        icon: "trending-up", label: t.nav.flows, count: FLOW_INSTANCES.filter(f => f.status === "active").length },
+    { id: "flows",        icon: "trending-up", label: t.nav.flows, count: myFlows },
     { id: "new",          icon: "plus",        label: t.nav.newRequest, accent: true },
-    { id: "my",           icon: "list",        label: t.nav.myRequests, count: myDraft },
+    { id: "my",           icon: "list",        label: t.nav.myRequests, count: myCount },
     { id: "approvals",    icon: "check-circle",label: t.nav.approvals, count: pendingForMe },
     { id: "it",           icon: "tool",        label: t.nav.itQueue, count: itQ },
     { id: "archive",      icon: "archive",     label: t.nav.archive },

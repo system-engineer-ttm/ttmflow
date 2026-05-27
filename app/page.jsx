@@ -215,7 +215,7 @@ function AppShell() {
   // ── Screens ──────────────────────────────────────────────────────────────
   let screen;
   if (route === "dashboard")
-    screen = <Dashboard lang={lang} role={role} t={tt} setRoute={setRouteWithReset} openRequest={openRequest} />;
+    screen = <Dashboard lang={lang} role={role} t={tt} setRoute={setRouteWithReset} openRequest={openRequest} currentUser={currentUser} />;
   else if (route === "flows")
     screen = <FlowsPage lang={lang} t={tt} openFlow={openFlow} startFlow={() => setRouteWithReset("flowStart")}
       openFlowBuilder={role === "admin" ? () => setRouteWithReset("flowBuilder") : null} />;
@@ -255,13 +255,14 @@ function AppShell() {
   else if (route === "users")
     screen = <UserManagement lang={lang} />;
   else
-    screen = <Dashboard lang={lang} role={role} t={tt} setRoute={setRouteWithReset} openRequest={openRequest} />;
+    screen = <Dashboard lang={lang} role={role} t={tt} setRoute={setRouteWithReset} openRequest={openRequest} currentUser={currentUser} />;
 
   return (
     <div className={cls("ttm-app", `theme-${t.theme}`, `density-${t.density}`)}>
       <Sidebar
         lang={lang} route={route} setRoute={setRouteWithReset} role={role} t={tt}
         onLogout={handleLogout}
+        currentUser={currentUser}
       />
       <div className="ttm-main">
         <Topbar

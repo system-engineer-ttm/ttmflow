@@ -3,39 +3,76 @@ import { Icon } from "./Icon";
 import { cls, Button, Card, SectionTitle, Spark, StatusPill } from "./Ui";
 import { useAppData } from "../lib/AppDataContext";
 
-export function Dashboard({ lang, role, t, setRoute, openRequest }) {
+export function Dashboard({ lang, role, t, setRoute, openRequest, currentUser: loggedInUser }) {
   const { REQUESTS: reqs, USERS: users, FORM_TEMPLATES: tmpl } = useAppData();
 
-  const currentUser = {
+  // Prefer the actual logged-in user; fall back to role-based mock for admin "View as"
+  const currentUser = loggedInUser || ({
     requester: users.REQ003, approver: users.APP001, it: users.IT001,
     admin: users.ADM001, auditor: users.AUD001,
-  }[role] || Object.values(users)[0] || { nameTh: "User", nameEn: "User" };
+  }[role]) || Object.values(users)[0] || { nameTh: "User", nameEn: "User" };
+
+  const myId = currentUser?.id;
+  const now = new Date();
+  const inThisMonth = (s) => {
+    if (!s) return false;
+    try {
+      const d = new Date(String(s).replace(" ", "T"));
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    } catch { return false; }
+  };
+
+  // ── Real counts based on the logged-in user ───────────────────────────
+  const myReqs = myId ? reqs.filter(r => r.requester === myId) : [];
+  const myDrafts = myReqs.filter(r => r.status === "draft").length;
+  const myInFlight = myReqs.filter(r => ["pending", "inProgress", "approved"].includes(r.status)).length;
+  const myDoneThisMonth = myReqs.filter(r => ["done", "approved"].includes(r.status) && inThisMonth(r.updatedAt)).length;
+
+  const awaitingMe = myId
+    ? reqs.filter(r => r.status === "pending" && (r.steps || [])[r.currentStep]?.user === myId).length
+    : 0;
+  const approvedByMeThisMonth = myId
+    ? reqs.filter(r => (r.steps || []).some(s => s.user === myId && s.action === "approved" && inThisMonth(s.at))).length
+    : 0;
+
+  const itInMyQueue = myId
+    ? reqs.filter(r => !["rejected", "done"].includes(r.status) && (r.steps || []).some(s => s.user === myId && (s.action === "in_progress" || s.action === "queued"))).length
+    : 0;
+  const itUrgent = myId
+    ? reqs.filter(r => r.priority === "urgent" && !["rejected", "done"].includes(r.status) && (r.steps || []).some(s => s.user === myId)).length
+    : 0;
+  const itClosedThisMonth = myId
+    ? reqs.filter(r => (r.steps || []).some(s => s.user === myId && s.action === "done" && inThisMonth(s.at))).length
+    : 0;
+
+  const totalThisMonth = reqs.filter(r => inThisMonth(r.createdAt)).length;
+  const totalDocs = reqs.length;
 
   const cards = {
     requester: [
-      { icon: "file-text", label: t.dash.myDraft, value: 2, trend: [2, 3, 1, 4, 2, 5, 2], color: "blue" },
-      { icon: "clock", label: lang === "th" ? "รอดำเนินการ" : "In flight", value: 3, trend: [3, 2, 4, 3, 5, 4, 3], color: "amber" },
-      { icon: "check-circle", label: lang === "th" ? "เสร็จสิ้นเดือนนี้" : "Done this month", value: 9, trend: [1, 3, 2, 4, 5, 7, 9], color: "green" },
+      { icon: "file-text", label: t.dash.myDraft, value: myDrafts, trend: [myDrafts], color: "blue" },
+      { icon: "clock", label: lang === "th" ? "รอดำเนินการ" : "In flight", value: myInFlight, trend: [myInFlight], color: "amber" },
+      { icon: "check-circle", label: lang === "th" ? "เสร็จสิ้นเดือนนี้" : "Done this month", value: myDoneThisMonth, trend: [myDoneThisMonth], color: "green" },
     ],
     approver: [
-      { icon: "inbox", label: t.dash.awaitMe, value: 4, trend: [2, 5, 4, 6, 3, 4, 4], color: "amber" },
-      { icon: "check-circle", label: lang === "th" ? "อนุมัติเดือนนี้" : "Approved this month", value: 27, trend: [3, 6, 8, 12, 17, 22, 27], color: "green" },
-      { icon: "trending-up", label: t.dash.throughput, value: "1.4 " + (lang === "th" ? "วัน" : "d"), trend: [3, 2, 2.5, 1.8, 1.7, 1.5, 1.4], color: "blue" },
+      { icon: "inbox", label: t.dash.awaitMe, value: awaitingMe, trend: [awaitingMe], color: "amber" },
+      { icon: "check-circle", label: lang === "th" ? "อนุมัติเดือนนี้" : "Approved this month", value: approvedByMeThisMonth, trend: [approvedByMeThisMonth], color: "green" },
+      { icon: "trending-up", label: t.dash.throughput, value: "—", trend: [0], color: "blue" },
     ],
     it: [
-      { icon: "tool", label: t.dash.inMyQueue, value: 6, trend: [4, 5, 6, 5, 7, 6, 6], color: "violet" },
-      { icon: "lifebuoy", label: lang === "th" ? "Ticket ด่วน" : "Urgent tickets", value: 1, trend: [0, 1, 0, 2, 1, 0, 1], color: "red" },
-      { icon: "check-circle", label: lang === "th" ? "ปิดงานเดือนนี้" : "Closed this month", value: 41, trend: [5, 12, 18, 24, 30, 36, 41], color: "green" },
+      { icon: "tool", label: t.dash.inMyQueue, value: itInMyQueue, trend: [itInMyQueue], color: "violet" },
+      { icon: "lifebuoy", label: lang === "th" ? "Ticket ด่วน" : "Urgent tickets", value: itUrgent, trend: [itUrgent], color: "red" },
+      { icon: "check-circle", label: lang === "th" ? "ปิดงานเดือนนี้" : "Closed this month", value: itClosedThisMonth, trend: [itClosedThisMonth], color: "green" },
     ],
     admin: [
-      { icon: "list", label: t.dash.thisMonth, value: 84, trend: [10, 22, 31, 44, 58, 71, 84], color: "blue" },
-      { icon: "trending-up", label: t.dash.throughput, value: "1.6 " + (lang === "th" ? "วัน" : "d"), trend: [2.4, 2.1, 1.9, 1.8, 1.7, 1.6, 1.6], color: "violet" },
-      { icon: "shield-check", label: t.dash.compliance, value: "98%", trend: [88, 91, 93, 94, 96, 97, 98], color: "green" },
+      { icon: "list", label: t.dash.thisMonth, value: totalThisMonth, trend: [totalThisMonth], color: "blue" },
+      { icon: "trending-up", label: t.dash.throughput, value: "—", trend: [0], color: "violet" },
+      { icon: "shield-check", label: t.dash.compliance, value: totalDocs > 0 ? "100%" : "—", trend: [0], color: "green" },
     ],
     auditor: [
-      { icon: "archive", label: lang === "th" ? "เอกสารทั้งหมด" : "Total documents", value: "1,284", trend: [820, 940, 1020, 1100, 1180, 1240, 1284], color: "blue" },
-      { icon: "shield-check", label: t.dash.compliance, value: "98%", trend: [88, 91, 93, 94, 96, 97, 98], color: "green" },
-      { icon: "fingerprint", label: lang === "th" ? "ลายเซ็นครบถ้วน" : "Signatures complete", value: "100%", trend: [98, 99, 100, 100, 100, 100, 100], color: "violet" },
+      { icon: "archive", label: lang === "th" ? "เอกสารทั้งหมด" : "Total documents", value: totalDocs.toLocaleString(), trend: [totalDocs], color: "blue" },
+      { icon: "shield-check", label: t.dash.compliance, value: totalDocs > 0 ? "100%" : "—", trend: [0], color: "green" },
+      { icon: "fingerprint", label: lang === "th" ? "ลายเซ็นครบถ้วน" : "Signatures complete", value: totalDocs > 0 ? "100%" : "—", trend: [0], color: "violet" },
     ],
   }[role];
 

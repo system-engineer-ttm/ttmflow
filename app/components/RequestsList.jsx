@@ -10,14 +10,29 @@ export function RequestsList({ lang, t, role, scope, openRequest, currentUser })
   const [q, setQ] = React.useState("");
   const [tmplFilter, setTmplFilter] = React.useState("all");
 
-  let filtered = reqs;
+  const myId = currentUser?.id;
+  let scoped = reqs;
   if (scope === "my") {
-    const myId = currentUser?.id;
-    filtered = myId ? reqs.filter(r => r.requester === myId) : reqs;
+    scoped = myId ? reqs.filter(r => r.requester === myId) : [];
+  } else if (scope === "approvals") {
+    scoped = myId
+      ? reqs.filter(r => {
+          if (r.status !== "pending") return false;
+          const cur = (r.steps || [])[r.currentStep];
+          return cur?.user === myId;
+        })
+      : reqs.filter(r => r.status === "pending");
+  } else if (scope === "it") {
+    scoped = myId
+      ? reqs.filter(r => {
+          if (["rejected", "done"].includes(r.status)) return false;
+          return (r.steps || []).some(s => s.user === myId && (s.action === "in_progress" || s.action === "queued"));
+        })
+      : reqs.filter(r => r.status === "inProgress" || r.status === "approved");
   }
-  if (scope === "approvals") filtered = reqs.filter(r => r.status === "pending");
-  if (scope === "it") filtered = reqs.filter(r => r.status === "inProgress" || r.status === "approved");
+  // scope === "archive" → show all
 
+  let filtered = scoped;
   if (filter !== "all") filtered = filtered.filter(r => r.status === filter);
   if (tmplFilter !== "all") filtered = filtered.filter(r => r.template === tmplFilter);
   if (q) filtered = filtered.filter(r =>
@@ -26,13 +41,13 @@ export function RequestsList({ lang, t, role, scope, openRequest, currentUser })
   );
 
   const statusCounts = {
-    all: reqs.length,
-    draft: 0,
-    pending: reqs.filter(r => r.status === "pending").length,
-    inProgress: reqs.filter(r => r.status === "inProgress").length,
-    approved: reqs.filter(r => r.status === "approved").length,
-    done: reqs.filter(r => r.status === "done").length,
-    rejected: reqs.filter(r => r.status === "rejected").length,
+    all: scoped.length,
+    draft: scoped.filter(r => r.status === "draft").length,
+    pending: scoped.filter(r => r.status === "pending").length,
+    inProgress: scoped.filter(r => r.status === "inProgress").length,
+    approved: scoped.filter(r => r.status === "approved").length,
+    done: scoped.filter(r => r.status === "done").length,
+    rejected: scoped.filter(r => r.status === "rejected").length,
   };
 
   const titleMap = {
