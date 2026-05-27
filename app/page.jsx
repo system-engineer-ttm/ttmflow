@@ -220,7 +220,7 @@ function AppShell() {
     screen = <FlowsPage lang={lang} t={tt} openFlow={openFlow} startFlow={() => setRouteWithReset("flowStart")}
       openFlowBuilder={role === "admin" ? () => setRouteWithReset("flowBuilder") : null} />;
   else if (route === "flowDetail")
-    screen = <FlowDetail lang={lang} t={tt} flowId={flowId} back={() => setRouteWithReset("flows")} openRequest={openRequest} />;
+    screen = <FlowDetail lang={lang} t={tt} flowId={flowId} back={() => setRouteWithReset("flows")} openRequest={openRequest} openForm={openForm} />;
   else if (route === "flowStart")
     screen = <FlowPicker lang={lang} t={tt} back={() => setRouteWithReset("flows")} onStart={startNewFlow} />;
   else if (route === "flowBuilder")

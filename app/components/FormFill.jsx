@@ -109,9 +109,22 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
       )}
 
       <div className="ttm-form-actions">
-        <Button variant="ghost" icon="trash">{t.common.cancel}</Button>
+        <Button variant="ghost" icon="trash" onClick={() => {
+          if (confirm(lang === "th" ? "ยกเลิกและกลับไปเลือกฟอร์ม? ข้อมูลที่กรอกจะหายไป" : "Cancel and go back? Your input will be lost.")) {
+            back();
+          }
+        }}>{t.common.cancel}</Button>
         <div className="ttm-spacer" />
-        <Button variant="ghost" icon="file-text">{t.common.saveDraft}</Button>
+        <Button variant="ghost" icon="file-text" onClick={async () => {
+          // Save as draft to localStorage (offline-friendly)
+          try {
+            const key = `ttmflow.draft.${tmpl.code}`;
+            localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), state }));
+            alert(lang === "th" ? "✓ บันทึกฉบับร่างในเครื่องแล้ว" : "✓ Draft saved locally");
+          } catch {
+            alert(lang === "th" ? "บันทึกไม่สำเร็จ" : "Save failed");
+          }
+        }}>{t.common.saveDraft}</Button>
         {stepIdx > 0 && <Button variant="secondary" icon="arrow-left" onClick={() => setStepIdx(stepIdx - 1)}>{t.common.back}</Button>}
         {stepIdx < 3 && <Button variant="primary" onClick={() => setStepIdx(stepIdx + 1)}>{t.common.next} <Icon name="arrow-right" size={15} /></Button>}
         {stepIdx === 3 && <Button variant="primary" icon="send" disabled={submitting} onClick={async () => {
@@ -410,7 +423,7 @@ function StepReview({ lang, t, state, tmpl }) {
           <span>{lang === "th" ? "ตัวอย่าง PDF ที่จะถูกสร้าง" : "PDF preview"}</span>
           <span className="ttm-mono ttm-muted" style={{ marginLeft: 8 }}>{state.docNo}.pdf</span>
           <div className="ttm-spacer" />
-          <Button variant="ghost" size="sm" icon="external">{t.common.preview}</Button>
+          <span className="ttm-muted ttm-small">{lang === "th" ? "(ดูตัวอย่างเต็มหลังกดส่ง)" : "(Full preview after submit)"}</span>
         </div>
         <div className="ttm-pdf-mini-body">
           <PDFPaperMini state={state} tmpl={tmpl} />

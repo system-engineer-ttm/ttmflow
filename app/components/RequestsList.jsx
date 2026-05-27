@@ -79,7 +79,11 @@ export function RequestsList({ lang, t, role, scope, openRequest, currentUser })
             <option value="all">{lang === "th" ? "ทุกแบบฟอร์ม" : "All form types"}</option>
             {tmpl.map(tt => <option key={tt.code} value={tt.code}>{tt.code} · {lang === "th" ? tt.titleTh : tt.titleEn}</option>)}
           </Select>
-          <Button variant="ghost" icon="filter" size="sm">{t.common.filter}</Button>
+          {(q || tmplFilter !== "all" || filter !== "all") && (
+            <Button variant="ghost" icon="x" size="sm" onClick={() => { setQ(""); setTmplFilter("all"); setFilter("all"); }}>
+              {lang === "th" ? "ล้างตัวกรอง" : "Clear filters"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -161,7 +165,23 @@ export function RequestsList({ lang, t, role, scope, openRequest, currentUser })
               ? "เอกสารทั้งหมดถูกเก็บแบบ append-only เป็นเวลา 7 ปี — ดาวน์โหลด audit pack รวมไฟล์ PDF + บันทึกกิจกรรม + ลายเซ็นเป็นรายเดือนได้"
               : "All documents are stored append-only for 7 years — download a monthly audit pack with PDFs, activity logs, and signatures."}</p>
           </div>
-          <Button variant="primary" icon="download">{lang === "th" ? "Audit pack" : "Audit pack"}</Button>
+          <Button variant="primary" icon="download" onClick={() => {
+            // Generate CSV audit pack from all visible requests
+            const header = ["Doc No", "Template", "Title", "Requester", "Status", "Created", "Updated", "Steps", "Priority"];
+            const rows = filtered.map(r => [
+              r.id, r.template, (r.titleTh || r.titleEn || "").replace(/"/g, '""'),
+              r.requester, r.status, r.createdAt, r.updatedAt,
+              (r.steps || []).length, r.priority || "normal",
+            ]);
+            const csv = [header, ...rows].map(row => row.map(c => `"${c}"`).join(",")).join("\n");
+            const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `audit-pack-${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }}>{lang === "th" ? "Audit pack" : "Audit pack"}</Button>
         </Card>
       )}
     </div>

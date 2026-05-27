@@ -159,7 +159,7 @@ export function FlowStepsMini({ tpl, states, lang }) {
   );
 }
 
-export function FlowDetail({ lang, flowId, back, openRequest }) {
+export function FlowDetail({ lang, flowId, back, openRequest, openForm }) {
   const { FLOW_INSTANCES, FLOW_TEMPLATES, FORM_TEMPLATES, REQUESTS, USERS } = useAppData();
   const flow = FLOW_INSTANCES.find(f => f.id === flowId) || FLOW_INSTANCES[0];
   if (!flow) return <div className="ttm-page"><div className="ttm-empty">{lang === "th" ? "ไม่พบ Flow" : "Flow not found"}</div></div>;
@@ -301,8 +301,8 @@ export function FlowDetail({ lang, flowId, back, openRequest }) {
                     </div>
                   )}
 
-                  {prog && reqDetails.length === 0 && (
-                    <Button variant="primary" size="sm" icon="plus">{lang === "th" ? "เริ่มกรอกฟอร์มขั้นนี้" : "Start this step"}</Button>
+                  {prog && reqDetails.length === 0 && openForm && (
+                    <Button variant="primary" size="sm" icon="plus" onClick={() => openForm(s.form)}>{lang === "th" ? "เริ่มกรอกฟอร์มขั้นนี้" : "Start this step"}</Button>
                   )}
                 </div>
               </li>

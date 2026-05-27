@@ -11,6 +11,21 @@ export function NotificationsLog({ lang, t }) {
   const { NOTIFICATIONS: list } = useAppData();
   const filtered = channel === "all" ? list : list.filter(n => n.channel === channel);
 
+  const exportCSV = () => {
+    const header = ["ID", "Time", "Channel", "Recipient", "Subject", "Doc No", "Status"];
+    const rows = filtered.map(n => [n.id, n.at, n.channel, n.to, (n.subject || "").replace(/"/g, '""'), n.reqId || "", n.status]);
+    const csv = [header, ...rows].map(r => r.map(c => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `notifications-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="ttm-page ttm-notif-page">
       <div className="ttm-list-head">
@@ -18,7 +33,7 @@ export function NotificationsLog({ lang, t }) {
           <h2>{t.nav.notifications}</h2>
           <p>{lang === "th" ? "บันทึกการส่งข้อความออกจากระบบ — LINE, Email, In-app" : "Outbound notification log — LINE, Email, In-app"}</p>
         </div>
-        <Button variant="ghost" icon="download" size="sm">{lang === "th" ? "ดาวน์โหลด CSV" : "Export CSV"}</Button>
+        <Button variant="ghost" icon="download" size="sm" onClick={exportCSV}>{lang === "th" ? "ดาวน์โหลด CSV" : "Export CSV"}</Button>
       </div>
 
       <div className="ttm-channel-stats">
@@ -169,6 +184,10 @@ export function Settings({ lang, t, setRoute }) {
       .catch(() => {});
   }, []);
 
+  // Draft state for numbering + notification settings
+  const [editNumbering, setEditNumbering] = React.useState({});
+  const [editNotifChannels, setEditNotifChannels] = React.useState({});
+
   // Reset draft when switching template
   React.useEffect(() => {
     if (cur) {
@@ -177,21 +196,23 @@ export function Settings({ lang, t, setRoute }) {
         return { roleTh: a.roleTh || a.roleEn || "", roleEn: a.roleEn || a.roleTh || "", slaDays: a.slaDays ?? 1, userId: a.userId || "" };
       });
       setEditApprovers(normalized);
+      setEditNumbering(cur.numbering || { reset: "year", digits: "4", current: "0143" });
+      setEditNotifChannels(cur.notifications || {
+        "line-group": true, "line-personal": true, "email-approver": true,
+        "email-it": true, "inapp": true, "requester-line": true,
+      });
       setSaveMsg("");
     }
   }, [cur?.code]);  // eslint-disable-line react-hooks/exhaustive-deps
 
-  const saveApprovers = async () => {
-    if (!cur || !editApprovers) return;
+  const savePartial = async (patch) => {
+    if (!cur) return;
     setSaving(true); setSaveMsg("");
     try {
       const res = await fetch(`/api/forms/${encodeURIComponent(cur.code)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...cur,
-          approvers: editApprovers,
-        }),
+        body: JSON.stringify({ ...cur, ...patch }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -207,6 +228,10 @@ export function Settings({ lang, t, setRoute }) {
       setSaving(false);
     }
   };
+
+  const saveApprovers   = () => savePartial({ approvers: editApprovers });
+  const saveNumbering   = () => savePartial({ numbering: editNumbering });
+  const saveNotifChans  = () => savePartial({ notifications: editNotifChannels });
 
   if (!cur) {
     return (
@@ -269,7 +294,7 @@ export function Settings({ lang, t, setRoute }) {
                 <h3>{lang === "th" ? cur.titleTh : cur.titleEn}</h3>
               </div>
               <div className="ttm-spacer" />
-              <Button variant="ghost" icon="edit">{lang === "th" ? "แก้ไข" : "Edit"}</Button>
+              <Button variant="ghost" icon="edit" onClick={() => setRoute && setRoute("templateBuilder")}>{lang === "th" ? "แก้ไข Template" : "Edit Template"}</Button>
             </div>
           </Card>
 
@@ -296,22 +321,28 @@ export function Settings({ lang, t, setRoute }) {
               </div>
               <div className="ttm-numbering-options">
                 <Field label={lang === "th" ? "เริ่มนับใหม่" : "Reset counter"}>
-                  <Select defaultValue="year">
+                  <Select value={editNumbering.reset || "year"} onChange={e => setEditNumbering({ ...editNumbering, reset: e.target.value })}>
                     <option value="never">{lang === "th" ? "ไม่รีเซ็ต" : "Never"}</option>
                     <option value="year">{lang === "th" ? "ทุกปี" : "Yearly"}</option>
                     <option value="month">{lang === "th" ? "ทุกเดือน" : "Monthly"}</option>
                   </Select>
                 </Field>
                 <Field label={lang === "th" ? "จำนวนหลัก Running" : "Running digits"}>
-                  <Select defaultValue="4">
+                  <Select value={String(editNumbering.digits || "4")} onChange={e => setEditNumbering({ ...editNumbering, digits: e.target.value })}>
                     <option value="3">3 (001-999)</option>
                     <option value="4">4 (0001-9999)</option>
                     <option value="5">5 (00001-99999)</option>
                   </Select>
                 </Field>
                 <Field label={lang === "th" ? "ค่า Running ปัจจุบัน" : "Current running"}>
-                  <Input defaultValue="0143" />
+                  <Input value={editNumbering.current || ""} onChange={e => setEditNumbering({ ...editNumbering, current: e.target.value })} />
                 </Field>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
+                <Button variant="secondary" size="sm" icon="check" onClick={saveNumbering} disabled={saving}>
+                  {lang === "th" ? "บันทึกการตั้งค่าเลขเอกสาร" : "Save numbering"}
+                </Button>
+                {saveMsg && <span style={{ color: saveMsg.startsWith("✓") ? "var(--c-green)" : "var(--c-red)", fontSize: "0.85rem" }}>{saveMsg}</span>}
               </div>
             </div>
           </Card>
@@ -347,21 +378,30 @@ export function Settings({ lang, t, setRoute }) {
             <SectionTitle title={lang === "th" ? "ช่องทางการแจ้งเตือน" : "Notification channels"} />
             <div className="ttm-channel-toggles">
               {[
-                { id: "line-group", label: lang === "th" ? "LINE กลุ่ม IT Operations" : "LINE group: IT Operations", icon: "line", on: true },
-                { id: "line-personal", label: lang === "th" ? "LINE ผู้อนุมัติเฉพาะคน" : "LINE: assigned approver", icon: "line", on: true },
-                { id: "email-approver", label: lang === "th" ? "Email ผู้อนุมัติพร้อมลิงก์" : "Email approver with link", icon: "mail", on: true },
-                { id: "email-it", label: lang === "th" ? "Email ทีม IT เมื่ออนุมัติครบ" : "Email IT team on full approval", icon: "mail", on: true },
-                { id: "inapp", label: lang === "th" ? "แจ้งเตือนภายในแอป" : "In-app notification", icon: "bell", on: true },
-                { id: "requester-line", label: lang === "th" ? "แจ้งผลกลับผู้แจ้งทาง LINE" : "Notify requester via LINE", icon: "line", on: true },
+                { id: "line-group", label: lang === "th" ? "LINE กลุ่ม IT Operations" : "LINE group: IT Operations", icon: "line" },
+                { id: "line-personal", label: lang === "th" ? "LINE ผู้อนุมัติเฉพาะคน" : "LINE: assigned approver", icon: "line" },
+                { id: "email-approver", label: lang === "th" ? "Email ผู้อนุมัติพร้อมลิงก์" : "Email approver with link", icon: "mail" },
+                { id: "email-it", label: lang === "th" ? "Email ทีม IT เมื่ออนุมัติครบ" : "Email IT team on full approval", icon: "mail" },
+                { id: "inapp", label: lang === "th" ? "แจ้งเตือนภายในแอป" : "In-app notification", icon: "bell" },
+                { id: "requester-line", label: lang === "th" ? "แจ้งผลกลับผู้แจ้งทาง LINE" : "Notify requester via LINE", icon: "line" },
               ].map(ch => (
                 <div key={ch.id} className="ttm-channel-toggle">
                   <div className="ttm-channel-toggle-l">
                     <Icon name={ch.icon} size={15} />
                     <span>{ch.label}</span>
                   </div>
-                  <Switch checked={ch.on} onChange={() => {}} />
+                  <Switch
+                    checked={editNotifChannels[ch.id] !== false}
+                    onChange={e => setEditNotifChannels({ ...editNotifChannels, [ch.id]: e.target.checked })}
+                  />
                 </div>
               ))}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+              <Button variant="secondary" size="sm" icon="check" onClick={saveNotifChans} disabled={saving}>
+                {lang === "th" ? "บันทึกช่องทางแจ้งเตือน" : "Save notification channels"}
+              </Button>
+              {saveMsg && <span style={{ color: saveMsg.startsWith("✓") ? "var(--c-green)" : "var(--c-red)", fontSize: "0.85rem" }}>{saveMsg}</span>}
             </div>
           </Card>
         </div>

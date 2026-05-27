@@ -144,7 +144,12 @@ export function TemplateBuilder({ lang, back, onSave }) {
       <div className="ttm-form-actions">
         <Button variant="ghost" icon="trash" onClick={back}>{lang === "th" ? "ยกเลิก" : "Cancel"}</Button>
         <div className="ttm-spacer" />
-        <Button variant="ghost" icon="file-text">{lang === "th" ? "บันทึกฉบับร่าง" : "Save draft"}</Button>
+        <Button variant="ghost" icon="file-text" onClick={() => {
+          try {
+            localStorage.setItem(`ttmflow.tpl-draft.${tpl.code || "new"}`, JSON.stringify({ savedAt: Date.now(), tpl }));
+            alert(lang === "th" ? "✓ บันทึกฉบับร่างในเครื่องแล้ว" : "✓ Draft saved locally");
+          } catch { alert(lang === "th" ? "บันทึกไม่สำเร็จ" : "Save failed"); }
+        }}>{lang === "th" ? "บันทึกฉบับร่าง" : "Save draft"}</Button>
         {step > 0 && <Button variant="secondary" icon="arrow-left" onClick={() => setStep(step - 1)}>{lang === "th" ? "ย้อนกลับ" : "Back"}</Button>}
         {step < 3 && <Button variant="primary" onClick={() => setStep(step + 1)}>{lang === "th" ? "ถัดไป" : "Next"} <Icon name="arrow-right" size={15} /></Button>}
         {step === 3 && <Button variant="primary" icon="shield-check" onClick={() => onSave(tpl)}>{lang === "th" ? "ขึ้นทะเบียน & เผยแพร่" : "Register & publish"}</Button>}
