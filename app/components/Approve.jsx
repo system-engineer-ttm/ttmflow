@@ -15,7 +15,13 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
   const [comment, setComment] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
-  const canAct = (role === "approver" || role === "it" || role === "admin") && req.status === "pending";
+  const myId = currentUser?.id;
+  const currentStepData = (req.steps || [])[req.currentStep ?? 1];
+  const canAct = req.status === "pending" && (
+    role === "admin" ||
+    (currentStepData?.user && currentStepData.user === myId) ||
+    (!currentStepData?.user && (role === "approver" || role === "it"))
+  );
   const parentFlow = FLOW_INSTANCES.find(f =>
     (f.stepStates || []).some(s => (s.reqIds || []).includes(req.id))
   );
@@ -145,8 +151,11 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
                 <Textarea placeholder={lang === "th" ? "ระบุเหตุผลของการอนุมัติ/ไม่อนุมัติ..." : "Add a comment..."} value={comment} onChange={e => setComment(e.target.value)} />
               </Field>
               <div className="ttm-action-buttons">
-                <Button variant="danger" icon="x" onClick={() => { setDecision("reject"); setSignOpen(true); }}>{t.common.reject}</Button>
-                <Button variant="primary" icon="check" onClick={() => { setDecision("approve"); setSignOpen(true); }}>{t.common.approve}</Button>
+                <Button variant="danger" icon="x" onClick={() => { setDecision("rejected"); setSignOpen(true); }}>{t.common.reject}</Button>
+                {role === "it"
+                  ? <Button variant="primary" icon="check-circle" onClick={() => { setDecision("done"); setSignOpen(true); }}>{lang === "th" ? "เสร็จสิ้น / Done" : "Mark as done"}</Button>
+                  : <Button variant="primary" icon="check" onClick={() => { setDecision("approved"); setSignOpen(true); }}>{t.common.approve}</Button>
+                }
               </div>
               <div className="ttm-action-foot">
                 <Icon name="shield-check" size={14} />
@@ -193,7 +202,7 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
         </div>
       </div>
 
-      {signOpen && <SignatureModal lang={lang} decision={decision} onClose={() => setSignOpen(false)} />}
+      {signOpen && <SignatureModal lang={lang} decision={decision} onClose={() => setSignOpen(false)} onConfirm={submitDecision} busy={busy} />}
     </div>
   );
 }
@@ -584,7 +593,7 @@ function AuditLog({ req, lang }) {
   );
 }
 
-function SignatureModal({ lang, decision, onClose }) {
+function SignatureModal({ lang, decision, onClose, onConfirm, busy }) {
   const [mode, setMode] = React.useState("draw");
   const canvasRef = React.useRef(null);
   const [hasInk, setHasInk] = React.useState(false);
@@ -630,7 +639,7 @@ function SignatureModal({ lang, decision, onClose }) {
       <div className="ttm-modal">
         <div className="ttm-modal-head">
           <div>
-            <h3>{decision === "approve" ? (lang === "th" ? "ยืนยันการอนุมัติ" : "Confirm approval") : (lang === "th" ? "ยืนยันการไม่อนุมัติ" : "Confirm rejection")}</h3>
+            <h3>{decision === "rejected" ? (lang === "th" ? "ยืนยันการไม่อนุมัติ" : "Confirm rejection") : decision === "done" ? (lang === "th" ? "ยืนยันการเสร็จสิ้น" : "Confirm completion") : (lang === "th" ? "ยืนยันการอนุมัติ" : "Confirm approval")}</h3>
             <p>{lang === "th" ? "ลงลายเซ็นเพื่อยืนยันการดำเนินการของคุณ" : "Sign to confirm your action"}</p>
           </div>
           <IconButton icon="x" onClick={onClose} />
@@ -685,8 +694,8 @@ function SignatureModal({ lang, decision, onClose }) {
 
         <div className="ttm-modal-foot">
           <Button variant="ghost" onClick={onClose}>{lang === "th" ? "ยกเลิก" : "Cancel"}</Button>
-          <Button variant={decision === "approve" ? "primary" : "danger"} icon={decision === "approve" ? "check" : "x"} onClick={onClose}>
-            {decision === "approve" ? (lang === "th" ? "ลงนาม & อนุมัติ" : "Sign & approve") : (lang === "th" ? "ลงนาม & ไม่อนุมัติ" : "Sign & reject")}
+          <Button variant={decision === "rejected" ? "danger" : "primary"} icon={decision === "rejected" ? "x" : "check"} onClick={onConfirm} disabled={busy}>
+            {decision === "rejected" ? (lang === "th" ? "ลงนาม & ไม่อนุมัติ" : "Sign & reject") : decision === "done" ? (lang === "th" ? "ลงนาม & ยืนยันเสร็จสิ้น" : "Sign & mark done") : (lang === "th" ? "ลงนาม & อนุมัติ" : "Sign & approve")}
           </Button>
         </div>
       </div>
