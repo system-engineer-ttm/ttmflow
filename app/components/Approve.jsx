@@ -634,9 +634,8 @@ function SignatureModal({ lang, decision, onClose, onConfirm, busy }) {
   };
 
   return (
-    <>
-      <div className="ttm-modal-scrim" onClick={onClose} />
-      <div className="ttm-modal">
+    <div className="ttm-modal-scrim" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="ttm-modal ttm-sig-modal">
         <div className="ttm-modal-head">
           <div>
             <h3>{decision === "rejected" ? (lang === "th" ? "ยืนยันการไม่อนุมัติ" : "Confirm rejection") : decision === "done" ? (lang === "th" ? "ยืนยันการเสร็จสิ้น" : "Confirm completion") : (lang === "th" ? "ยืนยันการอนุมัติ" : "Confirm approval")}</h3>
@@ -644,6 +643,8 @@ function SignatureModal({ lang, decision, onClose, onConfirm, busy }) {
           </div>
           <IconButton icon="x" onClick={onClose} />
         </div>
+
+        <div className="ttm-modal-body">
 
         <div className="ttm-sig-modes">
           {[
@@ -692,6 +693,8 @@ function SignatureModal({ lang, decision, onClose, onConfirm, busy }) {
           </div>
         )}
 
+        </div>{/* /.ttm-modal-body */}
+
         <div className="ttm-modal-foot">
           <Button variant="ghost" onClick={onClose}>{lang === "th" ? "ยกเลิก" : "Cancel"}</Button>
           <Button variant={decision === "rejected" ? "danger" : "primary"} icon={decision === "rejected" ? "x" : "check"} onClick={onConfirm} disabled={busy}>
@@ -699,6 +702,6 @@ function SignatureModal({ lang, decision, onClose, onConfirm, busy }) {
           </Button>
         </div>
       </div>
-    </>
+    </div>
   );
 }

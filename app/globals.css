@@ -1299,7 +1299,12 @@ p { margin: 0; color: var(--text-2); }
 .ttm-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .ttm-modal-head h3 { font-size: 17px; }
 .ttm-modal-head p { font-size: 12.5px; margin-top: 2px; }
-.ttm-modal-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+.ttm-modal-foot {
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 1rem 1.5rem; border-top: 1px solid var(--border);
+  background: var(--surface); position: sticky; bottom: 0; z-index: 1;
+}
+.ttm-sig-modal { max-width: 640px; }
 
 .ttm-sig-modes {
   display: flex;
