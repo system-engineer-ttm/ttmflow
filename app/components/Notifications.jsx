@@ -152,8 +152,61 @@ function EmailPreview({ lang }) {
 
 export function Settings({ lang, t, setRoute }) {
   const [selected, setSelected] = React.useState("FM-IT-01-01");
-  const { FORM_TEMPLATES: tmpl } = useAppData();
+  const { FORM_TEMPLATES: tmpl, refreshForms } = useAppData();
   const cur = tmpl.find(x => x.code === selected) || tmpl[tmpl.length - 1];
+
+  // Draft state for editing the current template's approvers
+  const [editApprovers, setEditApprovers] = React.useState(null);
+  const [saving, setSaving] = React.useState(false);
+  const [saveMsg, setSaveMsg] = React.useState("");
+  const [users, setUsers] = React.useState([]);
+
+  // Load users for the picker
+  React.useEffect(() => {
+    fetch("/api/users")
+      .then(r => r.json())
+      .then(d => Array.isArray(d) ? setUsers(d) : null)
+      .catch(() => {});
+  }, []);
+
+  // Reset draft when switching template
+  React.useEffect(() => {
+    if (cur) {
+      const normalized = (cur.approvers || []).map(a => {
+        if (typeof a === "string") return { roleTh: a, roleEn: a, slaDays: 1, userId: "" };
+        return { roleTh: a.roleTh || a.roleEn || "", roleEn: a.roleEn || a.roleTh || "", slaDays: a.slaDays ?? 1, userId: a.userId || "" };
+      });
+      setEditApprovers(normalized);
+      setSaveMsg("");
+    }
+  }, [cur?.code]);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveApprovers = async () => {
+    if (!cur || !editApprovers) return;
+    setSaving(true); setSaveMsg("");
+    try {
+      const res = await fetch(`/api/forms/${encodeURIComponent(cur.code)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...cur,
+          approvers: editApprovers,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setSaveMsg("❌ " + (err.error || "บันทึกไม่สำเร็จ"));
+      } else {
+        await refreshForms();
+        setSaveMsg(lang === "th" ? "✓ บันทึกแล้ว" : "✓ Saved");
+        setTimeout(() => setSaveMsg(""), 3000);
+      }
+    } catch (e) {
+      setSaveMsg("❌ " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!cur) {
     return (
@@ -266,9 +319,28 @@ export function Settings({ lang, t, setRoute }) {
           <Card>
             <SectionTitle
               title={lang === "th" ? "ลำดับการอนุมัติ" : "Approval chain"}
-              right={<Button variant="ghost" size="sm" icon="plus">{lang === "th" ? "เพิ่มขั้น" : "Add step"}</Button>}
+              right={
+                <Button variant="ghost" size="sm" icon="plus" onClick={() => {
+                  setEditApprovers([...(editApprovers || []), { roleTh: "ผู้อนุมัติใหม่", roleEn: "New approver", slaDays: 1, userId: "" }]);
+                }}>{lang === "th" ? "เพิ่มขั้น" : "Add step"}</Button>
+              }
             />
-            <ApprovalChainEditor approvers={cur.approvers || []} lang={lang} />
+            <ApprovalChainEditor
+              approvers={editApprovers || []}
+              users={users}
+              lang={lang}
+              onChange={setEditApprovers}
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+              <Button variant="primary" icon="check" onClick={saveApprovers} disabled={saving}>
+                {saving ? (lang === "th" ? "กำลังบันทึก..." : "Saving...") : (lang === "th" ? "บันทึกการเปลี่ยนแปลง" : "Save changes")}
+              </Button>
+              {saveMsg && <span style={{ color: saveMsg.startsWith("✓") ? "var(--c-green)" : "var(--c-red)", fontSize: "0.85rem" }}>{saveMsg}</span>}
+              <span className="ttm-spacer" />
+              <span className="ttm-muted ttm-small">
+                {lang === "th" ? "การเปลี่ยนแปลงจะมีผลกับคำขอที่สร้างใหม่เท่านั้น" : "Changes apply only to new requests"}
+              </span>
+            </div>
           </Card>
 
           <Card>
@@ -307,37 +379,73 @@ function Token({ label, value, color }) {
   );
 }
 
-function ApprovalChainEditor({ approvers, lang }) {
+function ApprovalChainEditor({ approvers, users = [], lang, onChange }) {
+  const update = (i, patch) => {
+    const next = [...approvers];
+    next[i] = { ...next[i], ...patch };
+    onChange?.(next);
+  };
+  const move = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= approvers.length) return;
+    const next = [...approvers];
+    [next[i], next[j]] = [next[j], next[i]];
+    onChange?.(next);
+  };
+  const remove = (i) => onChange?.(approvers.filter((_, idx) => idx !== i));
+
+  if (approvers.length === 0) {
+    return (
+      <div className="ttm-empty" style={{ padding: "1rem", textAlign: "center", color: "var(--muted)" }}>
+        {lang === "th" ? "ยังไม่มีขั้นอนุมัติ — กดปุ่ม \"เพิ่มขั้น\" ด้านบนเพื่อเริ่ม" : "No approval steps yet — click \"Add step\" above"}
+      </div>
+    );
+  }
+
   return (
     <ol className="ttm-chain-editor">
-      {approvers.map((r, i) => (
-        <li key={i} className="ttm-chain-step">
-          <div className="ttm-chain-num">{i + 1}</div>
-          <div className="ttm-chain-content">
-            <Field label={lang === "th" ? "บทบาท / ตำแหน่ง" : "Role"}>
-              <Input defaultValue={typeof r === "string" ? r : (lang === "th" ? r.roleTh : r.roleEn)} />
-            </Field>
-            <Field label={lang === "th" ? "ผู้ใช้ที่กำหนด" : "Assigned user(s)"}>
-              <Select defaultValue="auto">
-                <option value="auto">{lang === "th" ? "ตามโครงสร้างองค์กรอัตโนมัติ" : "Auto-resolve from org chart"}</option>
-                <option value="user">{lang === "th" ? "เลือกบุคคลเจาะจง" : "Specific user"}</option>
-                <option value="group">{lang === "th" ? "เลือกตามกลุ่ม" : "Group"}</option>
-              </Select>
-            </Field>
-            <Field label="SLA">
-              <Select defaultValue="1d">
-                <option value="4h">4 {lang === "th" ? "ชั่วโมง" : "hours"}</option>
-                <option value="1d">1 {lang === "th" ? "วันทำการ" : "business day"}</option>
-                <option value="2d">2 {lang === "th" ? "วันทำการ" : "business days"}</option>
-                <option value="3d">3 {lang === "th" ? "วันทำการ" : "business days"}</option>
-              </Select>
-            </Field>
-          </div>
-          <div className="ttm-chain-actions">
-            <IconButton icon="trash" />
-          </div>
-        </li>
-      ))}
+      {approvers.map((r, i) => {
+        const roleTh = typeof r === "string" ? r : (r.roleTh || "");
+        const roleEn = typeof r === "string" ? r : (r.roleEn || "");
+        const userId = typeof r === "string" ? "" : (r.userId || "");
+        const sla = typeof r === "string" ? 1 : (r.slaDays ?? 1);
+        return (
+          <li key={i} className="ttm-chain-step">
+            <div className="ttm-chain-num">{i + 1}</div>
+            <div className="ttm-chain-content">
+              <Field label={lang === "th" ? "บทบาท (ไทย)" : "Role (TH)"}>
+                <Input value={roleTh} onChange={e => update(i, { roleTh: e.target.value, roleEn: typeof r === "string" ? e.target.value : r.roleEn })} />
+              </Field>
+              <Field label={lang === "th" ? "บทบาท (Eng)" : "Role (EN)"}>
+                <Input value={roleEn} onChange={e => update(i, { roleEn: e.target.value })} />
+              </Field>
+              <Field label={lang === "th" ? "ผู้ใช้ที่กำหนด" : "Assigned user"}>
+                <Select value={userId} onChange={e => update(i, { userId: e.target.value })}>
+                  <option value="">{lang === "th" ? "— อัตโนมัติจาก org chart —" : "— Auto from org chart —"}</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {(lang === "th" ? u.nameTh : u.nameEn) || u.username} · {u.role} · {u.id}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="SLA">
+                <Select value={String(sla)} onChange={e => update(i, { slaDays: Number(e.target.value) })}>
+                  <option value="0.5">4 {lang === "th" ? "ชั่วโมง" : "hours"}</option>
+                  <option value="1">1 {lang === "th" ? "วันทำการ" : "business day"}</option>
+                  <option value="2">2 {lang === "th" ? "วันทำการ" : "business days"}</option>
+                  <option value="3">3 {lang === "th" ? "วันทำการ" : "business days"}</option>
+                </Select>
+              </Field>
+            </div>
+            <div className="ttm-chain-actions">
+              <IconButton icon="arrow-up" title={lang === "th" ? "เลื่อนขึ้น" : "Move up"} onClick={() => move(i, -1)} />
+              <IconButton icon="arrow-down" title={lang === "th" ? "เลื่อนลง" : "Move down"} onClick={() => move(i, 1)} />
+              <IconButton icon="trash" title={lang === "th" ? "ลบ" : "Remove"} onClick={() => remove(i)} />
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }

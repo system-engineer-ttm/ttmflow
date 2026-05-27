@@ -96,7 +96,7 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
         <>
           {stepIdx === 0 && <StepDynamicSchema lang={lang} sections={[tmpl.sections[0]]} state={state} set={set} />}
           {stepIdx === 1 && <StepDynamicSchema lang={lang} sections={tmpl.sections.slice(1)} state={state} set={set} />}
-          {stepIdx === 2 && <StepDynamicApprovers lang={lang} tmpl={tmpl} />}
+          {stepIdx === 2 && <StepDynamicApprovers lang={lang} tmpl={tmpl} currentUser={currentUser} />}
           {stepIdx === 3 && <StepDynamicReview lang={lang} state={state} tmpl={tmpl} />}
         </>
       ) : (
@@ -121,7 +121,13 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
             const approvers = tmpl.approvers || [];
             const steps = [
               { role: lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester", user: currentUser?.id || "REQ003", action: "submitted", at: new Date().toISOString().slice(0,16).replace("T"," "), signed: true },
-              ...approvers.map((a, i) => ({ role: typeof a === "string" ? a : (a.roleTh || a.roleEn || `Step ${i+1}`), user: "", action: i === 0 ? "pending" : "queued", at: null, signed: false })),
+              ...approvers.map((a, i) => ({
+                role: typeof a === "string" ? a : (a.roleTh || a.roleEn || `Step ${i+1}`),
+                user: typeof a === "string" ? "" : (a.userId || ""),
+                action: i === 0 ? "pending" : "queued",
+                at: null,
+                signed: false,
+              })),
             ];
             await fetch("/api/requests", {
               method: "POST",
@@ -605,16 +611,16 @@ function DynField({ field, lang, value, onChange }) {
   );
 }
 
-function StepDynamicApprovers({ lang, tmpl }) {
+function StepDynamicApprovers({ lang, tmpl, currentUser }) {
   const { USERS } = useAppData();
-  const placeholderUser = { nameTh: "—", nameEn: "—", titleTh: "", titleEn: "", avatar: "?" };
+  const placeholderUser = { nameTh: "—", nameEn: "—", titleTh: lang === "th" ? "ยังไม่ระบุ" : "Not specified", titleEn: "Not specified", avatar: "?" };
   const fallback = [
     USERS.APP001 || placeholderUser,
     USERS.APP002 || placeholderUser,
     USERS.IT001 || placeholderUser,
     USERS.IT002 || placeholderUser,
   ];
-  const me = USERS.REQ003 || placeholderUser;
+  const me = currentUser || USERS.REQ003 || placeholderUser;
   const approvers = tmpl.approvers || [];
   return (
     <Card className="ttm-form-section">
@@ -632,21 +638,31 @@ function StepDynamicApprovers({ lang, tmpl }) {
           </div>
           <div className="ttm-approver-sla"><Badge kind="green">{lang === "th" ? "ลงนามอัตโนมัติ" : "Auto-sign"}</Badge></div>
         </li>
-        {approvers.map((role, i) => (
-          <li key={i} className="ttm-approver-row">
-            <div className="ttm-approver-num">{i + 1}</div>
-            <Avatar user={fallback[i % fallback.length]} size={40} />
-            <div className="ttm-approver-meta">
-              <div className="ttm-approver-name">{typeof role === "string" ? role : (lang === "th" ? role.roleTh : role.roleEn)}</div>
-              <div className="ttm-approver-role">
-                <span className="ttm-muted">
-                  {lang === "th" ? "ใช้ผู้อนุมัติจาก org chart อัตโนมัติ" : "Auto-resolved from org chart"}
-                </span>
+        {approvers.map((role, i) => {
+          const assignedUserId = typeof role === "object" ? role.userId : null;
+          const assignedUser = assignedUserId ? USERS[assignedUserId] : null;
+          const display = assignedUser || fallback[i % fallback.length];
+          const sla = typeof role === "object" && role.slaDays ? role.slaDays : 1;
+          return (
+            <li key={i} className="ttm-approver-row">
+              <div className="ttm-approver-num">{i + 1}</div>
+              <Avatar user={display} size={40} />
+              <div className="ttm-approver-meta">
+                <div className="ttm-approver-name">
+                  {assignedUser
+                    ? (lang === "th" ? assignedUser.nameTh : assignedUser.nameEn)
+                    : (typeof role === "string" ? role : (lang === "th" ? role.roleTh : role.roleEn))}
+                </div>
+                <div className="ttm-approver-role">
+                  {assignedUser
+                    ? <>{typeof role === "string" ? role : (lang === "th" ? role.roleTh : role.roleEn)} · <span className="ttm-muted">{lang === "th" ? assignedUser.titleTh : assignedUser.titleEn}</span></>
+                    : <span className="ttm-muted">{lang === "th" ? "ยังไม่ระบุผู้อนุมัติ — กำหนดได้ที่ ตั้งค่าฟอร์ม" : "No assignee — set in Form Settings"}</span>}
+                </div>
               </div>
-            </div>
-            <div className="ttm-approver-sla"><Badge kind="neutral"><Icon name="clock" size={11} /> SLA 1 {lang === "th" ? "วัน" : "d"}</Badge></div>
-          </li>
-        ))}
+              <div className="ttm-approver-sla"><Badge kind="neutral"><Icon name="clock" size={11} /> SLA {sla} {lang === "th" ? "วัน" : "d"}</Badge></div>
+            </li>
+          );
+        })}
       </ol>
     </Card>
   );
