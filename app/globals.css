@@ -1654,8 +1654,43 @@ p { margin: 0; color: var(--text-2); }
   font-size: 12px; font-weight: 700;
   flex-shrink: 0;
 }
-.ttm-chain-content { flex: 1; display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 10px; }
+.ttm-chain-content { flex: 1; display: flex; flex-direction: column; gap: 10px; }
 .ttm-chain-actions { display: flex; align-items: center; }
+
+/* Mode toggle tabs */
+.ttm-chain-mode-tabs {
+  display: flex; gap: 3px; padding: 3px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; width: fit-content;
+}
+.ttm-chain-mode-tab {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 6px;
+  font-size: 0.78rem; font-weight: 500;
+  border: none; cursor: pointer;
+  background: transparent; color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+}
+.ttm-chain-mode-tab:hover { color: var(--fg); }
+.ttm-chain-mode-tab.is-active {
+  background: var(--bg); color: var(--brand);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+[data-theme=dark] .ttm-chain-mode-tab.is-active { background: var(--surface-3, #1e2433); }
+
+/* Field grid inside each mode */
+.ttm-chain-fields { display: grid; grid-template-columns: 2fr 2fr 1fr; gap: 10px; }
+.ttm-chain-fields.is-user { grid-template-columns: 1fr auto; }
+
+/* Selected-user preview card */
+.ttm-chain-user-preview {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 8px;
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-soft);
+}
+.ttm-chain-user-name { font-weight: 600; font-size: 0.875rem; line-height: 1.3; }
+.ttm-chain-user-sub  { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
 
 .ttm-channel-toggles { display: flex; flex-direction: column; gap: 6px; }
 .ttm-channel-toggle {

@@ -2,7 +2,7 @@
 import React from "react";
 import Image from "next/image";
 import { Icon } from "./Icon";
-import { cls, Badge, Button, Card, Field, IconButton, Input, SectionTitle, Select, Switch } from "./Ui";
+import { cls, Avatar, Badge, Button, Card, Field, IconButton, Input, SectionTitle, Select, Switch } from "./Ui";
 import { shortFormCode } from "../lib/data";
 import { useAppData } from "../lib/AppDataContext";
 
@@ -357,6 +357,7 @@ export function Settings({ lang, t, setRoute }) {
               }
             />
             <ApprovalChainEditor
+              key={cur.code}
               approvers={editApprovers || []}
               users={users}
               lang={lang}
@@ -420,19 +421,49 @@ function Token({ label, value, color }) {
 }
 
 function ApprovalChainEditor({ approvers, users = [], lang, onChange }) {
+  // Per-step mode: "role" = free-text role name, "user" = pick specific user from DB
+  // Initialise from data: if userId is already set → user mode, else → role mode
+  const [modeByIdx, setModeByIdx] = React.useState(() =>
+    Object.fromEntries(approvers.map((r, i) => [i, (typeof r !== "string" && r.userId) ? "user" : "role"]))
+  );
+
+  const switchMode = (i, m) => {
+    setModeByIdx(prev => ({ ...prev, [i]: m }));
+    if (m === "role") {
+      // clear userId when going back to role mode
+      const next = [...approvers];
+      next[i] = { ...next[i], userId: "" };
+      onChange?.(next);
+    }
+  };
+
   const update = (i, patch) => {
     const next = [...approvers];
     next[i] = { ...next[i], ...patch };
     onChange?.(next);
   };
+
   const move = (i, dir) => {
     const j = i + dir;
     if (j < 0 || j >= approvers.length) return;
     const next = [...approvers];
     [next[i], next[j]] = [next[j], next[i]];
+    setModeByIdx(prev => { const n = { ...prev }; [n[i], n[j]] = [n[j], n[i]]; return n; });
     onChange?.(next);
   };
-  const remove = (i) => onChange?.(approvers.filter((_, idx) => idx !== i));
+
+  const remove = (i) => {
+    setModeByIdx(prev => {
+      const n = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const ki = Number(k);
+        if (ki < i) n[ki] = v;
+        else if (ki > i) n[ki - 1] = v;
+      });
+      return n;
+    });
+    onChange?.(approvers.filter((_, idx) => idx !== i));
+  };
 
   if (approvers.length === 0) {
     return (
@@ -448,40 +479,103 @@ function ApprovalChainEditor({ approvers, users = [], lang, onChange }) {
         const roleTh = typeof r === "string" ? r : (r.roleTh || "");
         const roleEn = typeof r === "string" ? r : (r.roleEn || "");
         const userId = typeof r === "string" ? "" : (r.userId || "");
-        const sla = typeof r === "string" ? 1 : (r.slaDays ?? 1);
+        const sla   = typeof r === "string" ? 1 : (r.slaDays ?? 1);
+        const mode  = modeByIdx[i] ?? (userId ? "user" : "role");
+        const selUser = mode === "user" ? (users.find(u => u.id === userId) || null) : null;
+
         return (
           <li key={i} className="ttm-chain-step">
             <div className="ttm-chain-num">{i + 1}</div>
+
             <div className="ttm-chain-content">
-              <Field label={lang === "th" ? "บทบาท (ไทย)" : "Role (TH)"}>
-                <Input value={roleTh} onChange={e => update(i, { roleTh: e.target.value, roleEn: typeof r === "string" ? e.target.value : r.roleEn })} />
-              </Field>
-              <Field label={lang === "th" ? "บทบาท (Eng)" : "Role (EN)"}>
-                <Input value={roleEn} onChange={e => update(i, { roleEn: e.target.value })} />
-              </Field>
-              <Field label={lang === "th" ? "ผู้ใช้ที่กำหนด" : "Assigned user"}>
-                <Select value={userId} onChange={e => update(i, { userId: e.target.value })}>
-                  <option value="">{lang === "th" ? "— อัตโนมัติจาก org chart —" : "— Auto from org chart —"}</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {(lang === "th" ? u.nameTh : u.nameEn) || u.username} · {u.role} · {u.id}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="SLA">
-                <Select value={String(sla)} onChange={e => update(i, { slaDays: Number(e.target.value) })}>
-                  <option value="0.5">4 {lang === "th" ? "ชั่วโมง" : "hours"}</option>
-                  <option value="1">1 {lang === "th" ? "วันทำการ" : "business day"}</option>
-                  <option value="2">2 {lang === "th" ? "วันทำการ" : "business days"}</option>
-                  <option value="3">3 {lang === "th" ? "วันทำการ" : "business days"}</option>
-                </Select>
-              </Field>
+              {/* ── Mode toggle ── */}
+              <div className="ttm-chain-mode-tabs">
+                <button type="button" className={cls("ttm-chain-mode-tab", mode === "role" && "is-active")}
+                  onClick={() => switchMode(i, "role")}>
+                  <Icon name="users" size={13} />
+                  {lang === "th" ? "บทบาท" : "By role"}
+                </button>
+                <button type="button" className={cls("ttm-chain-mode-tab", mode === "user" && "is-active")}
+                  onClick={() => switchMode(i, "user")}>
+                  <Icon name="user" size={13} />
+                  {lang === "th" ? "ระบุชื่อผู้ใช้" : "Specific user"}
+                </button>
+              </div>
+
+              {mode === "role" ? (
+                /* ── Role mode: free-text role name ── */
+                <div className="ttm-chain-fields">
+                  <Field label={lang === "th" ? "บทบาท (ไทย)" : "Role (TH)"}>
+                    <Input value={roleTh} onChange={e => update(i, { roleTh: e.target.value })} />
+                  </Field>
+                  <Field label={lang === "th" ? "บทบาท (EN)" : "Role (EN)"}>
+                    <Input value={roleEn} onChange={e => update(i, { roleEn: e.target.value })} />
+                  </Field>
+                  <Field label="SLA">
+                    <Select value={String(sla)} onChange={e => update(i, { slaDays: Number(e.target.value) })}>
+                      <option value="0.5">4 {lang === "th" ? "ชม." : "hrs"}</option>
+                      <option value="1">1 {lang === "th" ? "วัน" : "day"}</option>
+                      <option value="2">2 {lang === "th" ? "วัน" : "days"}</option>
+                      <option value="3">3 {lang === "th" ? "วัน" : "days"}</option>
+                    </Select>
+                  </Field>
+                </div>
+              ) : (
+                /* ── User mode: pick a real user ── */
+                <>
+                  <div className="ttm-chain-fields is-user">
+                    <Field label={lang === "th" ? "เลือกผู้อนุมัติ" : "Select approver"}>
+                      <Select value={userId} onChange={e => {
+                        const u = users.find(x => x.id === e.target.value);
+                        update(i, {
+                          userId:  e.target.value,
+                          roleTh:  u ? (u.nameTh  || u.username) : "",
+                          roleEn:  u ? (u.nameEn  || u.nameTh || u.username) : "",
+                        });
+                      }}>
+                        <option value="">{lang === "th" ? "— เลือกผู้ใช้ —" : "— Select user —"}</option>
+                        {users.map(u => (
+                          <option key={u.id} value={u.id}>
+                            {(lang === "th" ? u.nameTh : u.nameEn) || u.username}
+                            {(lang === "th" ? u.titleTh : u.titleEn) ? ` · ${lang === "th" ? u.titleTh : u.titleEn}` : ""}
+                            {` (${u.role})`}
+                          </option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label="SLA">
+                      <Select value={String(sla)} onChange={e => update(i, { slaDays: Number(e.target.value) })}>
+                        <option value="0.5">4 {lang === "th" ? "ชม." : "hrs"}</option>
+                        <option value="1">1 {lang === "th" ? "วัน" : "day"}</option>
+                        <option value="2">2 {lang === "th" ? "วัน" : "days"}</option>
+                        <option value="3">3 {lang === "th" ? "วัน" : "days"}</option>
+                      </Select>
+                    </Field>
+                  </div>
+
+                  {/* Preview card for the selected user */}
+                  {selUser && (
+                    <div className="ttm-chain-user-preview">
+                      <Avatar user={selUser} size={34} />
+                      <div>
+                        <div className="ttm-chain-user-name">
+                          {lang === "th" ? selUser.nameTh : selUser.nameEn}
+                        </div>
+                        <div className="ttm-chain-user-sub">
+                          {(lang === "th" ? selUser.titleTh : selUser.titleEn) || selUser.role}
+                          {selUser.dept ? ` · ${selUser.dept}` : ""}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
+
             <div className="ttm-chain-actions">
-              <IconButton icon="arrow-up" title={lang === "th" ? "เลื่อนขึ้น" : "Move up"} onClick={() => move(i, -1)} />
-              <IconButton icon="arrow-down" title={lang === "th" ? "เลื่อนลง" : "Move down"} onClick={() => move(i, 1)} />
-              <IconButton icon="trash" title={lang === "th" ? "ลบ" : "Remove"} onClick={() => remove(i)} />
+              <IconButton icon="arrow-up"   title={lang === "th" ? "เลื่อนขึ้น" : "Move up"}   onClick={() => move(i, -1)} />
+              <IconButton icon="arrow-down" title={lang === "th" ? "เลื่อนลง"  : "Move down"} onClick={() => move(i, 1)}  />
+              <IconButton icon="trash"      title={lang === "th" ? "ลบ"        : "Remove"}     onClick={() => remove(i)}   />
             </div>
           </li>
         );
