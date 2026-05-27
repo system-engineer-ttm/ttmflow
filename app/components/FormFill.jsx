@@ -97,7 +97,7 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
           {stepIdx === 0 && <StepDynamicSchema lang={lang} sections={[tmpl.sections[0]]} state={state} set={set} />}
           {stepIdx === 1 && <StepDynamicSchema lang={lang} sections={tmpl.sections.slice(1)} state={state} set={set} />}
           {stepIdx === 2 && <StepDynamicApprovers lang={lang} tmpl={tmpl} currentUser={currentUser} />}
-          {stepIdx === 3 && <StepDynamicReview lang={lang} state={state} tmpl={tmpl} />}
+          {stepIdx === 3 && <StepDynamicReview lang={lang} state={state} tmpl={tmpl} currentUser={currentUser} />}
         </>
       ) : (
         <>
@@ -142,14 +142,21 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
                 signed: false,
               })),
             ];
+            // For dynamic-section forms use the template title; for legacy forms use the purpose text
+            const reqTitleTh = hasSections
+              ? tmpl.titleTh
+              : (state.purpose?.slice(0, 80) || tmpl.titleTh);
+            const reqTitleEn = hasSections
+              ? tmpl.titleEn
+              : (state.purpose?.slice(0, 80) || tmpl.titleEn);
             await fetch("/api/requests", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 id: state.docNo,
                 template: tmpl.code,
-                titleTh: state.purpose?.slice(0, 80) || (lang === "th" ? tmpl.titleTh : tmpl.titleEn),
-                titleEn: state.purpose?.slice(0, 80) || tmpl.titleEn,
+                titleTh: reqTitleTh,
+                titleEn: reqTitleEn,
                 priority: "normal",
                 status: "pending",
                 currentStep: 1,
@@ -681,8 +688,9 @@ function StepDynamicApprovers({ lang, tmpl, currentUser }) {
   );
 }
 
-function StepDynamicReview({ lang, state, tmpl }) {
+function StepDynamicReview({ lang, state, tmpl, currentUser }) {
   const sch = state.sch || {};
+  const me = currentUser;
   return (
     <Card className="ttm-form-section">
       <div className="ttm-form-section-head">
@@ -690,12 +698,14 @@ function StepDynamicReview({ lang, state, tmpl }) {
         <span className="ttm-section-hint">{lang === "th" ? "ระบบจะสร้าง PDF ตาม template ที่ขึ้นทะเบียน" : "PDF will be generated from the registered template"}</span>
       </div>
       <div className="ttm-review-grid">
-        <ReviewBlock title={lang === "th" ? "ผู้แจ้ง" : "Requester"} items={[
-          [lang === "th" ? "ชื่อ-นามสกุล" : "Name", state.employeeName],
-          [lang === "th" ? "รหัสพนักงาน" : "Employee ID", state.employeeId],
-          [lang === "th" ? "ตำแหน่ง" : "Position", state.position],
-          [lang === "th" ? "แผนก" : "Department", state.department],
-        ]} />
+        {/* Who is actually submitting this form */}
+        {me && (
+          <ReviewBlock title={lang === "th" ? "ผู้ส่งเรื่อง (ผู้ Login)" : "Submitted by"} items={[
+            [lang === "th" ? "ชื่อ-นามสกุล" : "Name",       lang === "th" ? (me.nameTh  || me.username) : (me.nameEn  || me.username)],
+            [lang === "th" ? "ตำแหน่ง"      : "Position",    lang === "th" ? (me.titleTh || me.role)     : (me.titleEn || me.role)],
+            [lang === "th" ? "แผนก"          : "Department",  me.dept || "—"],
+          ]} />
+        )}
         {tmpl.sections.map((sec) => (
           <ReviewBlock key={sec.id} wide title={lang === "th" ? sec.titleTh : sec.titleEn}
             items={sec.fields.map(f => {
