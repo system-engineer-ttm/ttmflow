@@ -67,8 +67,16 @@ function FormIT0101({ req, tmpl, usersMap }) {
   const sch = req.payload?.sch || req.payload || {};
   const requester = usersMap[req.requester] || {};
   const steps = req.steps || [];
-  const approver = steps[1] ? usersMap[steps[1].user] : null;
-  const itStaff = steps[steps.length - 1] ? usersMap[steps[steps.length - 1].user] : null;
+  // Resolve approver/IT-staff info, falling back to the step's role name if no user is assigned
+  const stepInfo = (s) => {
+    if (!s) return null;
+    const u = usersMap[s.user];
+    if (u) return { nameTh: u.nameTh, titleTh: u.titleTh, signed: s.signed === true, at: s.at };
+    if (s.role) return { nameTh: s.role, titleTh: "", signed: s.signed === true, at: s.at };
+    return null;
+  };
+  const approver = stepInfo(steps[1]);
+  const itStaff  = stepInfo(steps[steps.length - 1]);
 
   const docNo = req.id;
   const fmtDate = (d) => {
@@ -250,9 +258,9 @@ function FormIT0101({ req, tmpl, usersMap }) {
             </thead>
             <tbody>
               <tr>
-                <SigCell name={requester.nameTh} title={requester.titleTh} />
-                <SigCell name={itStaff?.nameTh} title={itStaff?.titleTh} />
-                <SigCell name={approver?.nameTh} title={approver?.titleTh} />
+                <SigCell name={requester.nameTh} title={requester.titleTh} signed={steps[0]?.signed === true} at={steps[0]?.at} />
+                <SigCell name={itStaff?.nameTh}  title={itStaff?.titleTh}  signed={itStaff?.signed}    at={itStaff?.at} />
+                <SigCell name={approver?.nameTh} title={approver?.titleTh} signed={approver?.signed}   at={approver?.at} />
               </tr>
             </tbody>
           </table>
@@ -400,9 +408,20 @@ function PageFooter({ pageNum, totalPages }) {
   );
 }
 
-function SigCell({ name, title }) {
+function SigCell({ name, title, signed, at }) {
+  // Parse "YYYY-MM-DD HH:mm" → { dd, mm, yy }
+  let dd = "", mm = "", yy = "";
+  if (at) {
+    const m = String(at).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) { yy = m[1].slice(-2); mm = m[2]; dd = m[3]; }
+  }
   return (
     <td className="sig-cell">
+      {signed && (
+        <div className="sig-stamp">
+          <span>✓ ลงนามอิเล็กทรอนิกส์</span>
+        </div>
+      )}
       <div className="sig-row">
         <span className="sig-label">ลงชื่อ :</span>
         <span className="sig-fill">
@@ -417,11 +436,11 @@ function SigCell({ name, title }) {
       </div>
       <div className="sig-row sig-date-row">
         <span className="sig-label">วันที่ :</span>
-        <span className="sig-date-slot" />
+        <span className="sig-date-slot">{dd}</span>
         <span className="sig-slash">/</span>
-        <span className="sig-date-slot" />
+        <span className="sig-date-slot">{mm}</span>
         <span className="sig-slash">/</span>
-        <span className="sig-date-slot" />
+        <span className="sig-date-slot">{yy}</span>
       </div>
     </td>
   );
@@ -687,6 +706,24 @@ function PrintStyles() {
       .sig-cell {
         height: 120px;
         max-width: 0;  /* together with table-layout: fixed prevents cell expand */
+        position: relative;
+      }
+      .sig-stamp {
+        position: absolute;
+        top: 6px; right: 8px;
+        font-size: 9px;
+        color: #047857;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-weight: 600;
+      }
+      .sig-date-slot {
+        text-align: center;
+        font-weight: 500;
+        font-size: 11px;
+        padding: 0 2px;
       }
       .sig-row {
         margin: 6px 0;

@@ -33,7 +33,15 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
     const steps = [...(req.steps || [])];
     const idx = Math.max(0, (req.currentStep ?? 1));
     if (steps[idx]) {
-      steps[idx] = { ...steps[idx], action: decision, at: now, signed: true, comment: comment || undefined };
+      steps[idx] = {
+        ...steps[idx],
+        // Claim the step with the actual approver's id if it was empty (role-based step)
+        user: steps[idx].user || currentUser?.id || "",
+        action: decision,
+        at: now,
+        signed: true,
+        comment: comment || undefined,
+      };
     }
     const isLastStep = idx >= steps.length - 1;
     let newStatus = req.status;
