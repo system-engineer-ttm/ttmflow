@@ -5,14 +5,12 @@ import { cls, Avatar, Badge, Button, Card, Check, Field, Input, Select, Stepper,
 import { shortFormCode } from "../lib/data";
 import { useAppData } from "../lib/AppDataContext";
 
-// Per-session running number so the same fill keeps the same doc.
-let __ttmRun = null;
-
 function genDocNo(code) {
   const d = new Date();
   const yymmdd = `${String(d.getFullYear()).slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  if (__ttmRun == null) __ttmRun = 140 + Math.floor(Math.random() * 30);
-  const n = String(__ttmRun + 5).padStart(4, "0");
+  // Use random suffix per fill — avoids PK collisions when the same tab
+  // is used to submit multiple requests in one session.
+  const n = String(Math.floor(Math.random() * 9000) + 1000); // 4-digit 1000–9999
   return `${shortFormCode(code)}-${yymmdd}-${n}`;
 }
 
@@ -130,7 +128,6 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
         {stepIdx === 3 && <Button variant="primary" icon="send" disabled={submitting} onClick={async () => {
           if (submitting) return;
           setSubmitting(true);
-          try {
             // Safety: filter out any "ผู้แจ้งเรื่อง / Requester" entry from the template
             // chain — that step is added by us below and would otherwise duplicate.
             const isRequesterRole = (r) => {
@@ -173,28 +170,38 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
             const reqTitleEn = hasSections
               ? tmpl.titleEn
               : (state.purpose?.slice(0, 80) || tmpl.titleEn);
-            await fetch("/api/requests", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                id: state.docNo,
-                template: tmpl.code,
-                titleTh: reqTitleTh,
-                titleEn: reqTitleEn,
-                priority: "normal",
-                status: "pending",
-                currentStep: 1,
-                steps,
-                payload: state,
-              }),
-            });
-          } catch (e) {
-            /* ignore — still navigate to success page */
-          } finally {
-            setSubmitting(false);
-            onSubmitted(state.docNo);
-          }
-        }}>{t.common.submit}</Button>}
+            let ok = false;
+            try {
+              const res = await fetch("/api/requests", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  id: state.docNo,
+                  template: tmpl.code,
+                  titleTh: reqTitleTh,
+                  titleEn: reqTitleEn,
+                  priority: "normal",
+                  status: "pending",
+                  currentStep: 1,
+                  steps,
+                  payload: state,
+                }),
+              });
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                alert((lang === "th" ? "บันทึกไม่สำเร็จ: " : "Submit failed: ") + (err.error || res.statusText || res.status));
+                console.error("Submit failed:", res.status, err);
+              } else {
+                ok = true;
+              }
+            } catch (e) {
+              alert((lang === "th" ? "เกิดข้อผิดพลาด: " : "Error: ") + e.message);
+              console.error("Submit error:", e);
+            } finally {
+              setSubmitting(false);
+            }
+            if (ok) onSubmitted(state.docNo);
+          }}>{t.common.submit}</Button>}
       </div>
     </div>
   );
