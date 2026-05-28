@@ -356,6 +356,14 @@ export function Settings({ lang, t, setRoute }) {
                 }}>{lang === "th" ? "เพิ่มขั้น" : "Add step"}</Button>
               }
             />
+            <div className="ttm-info-banner" style={{ marginBottom: 12 }}>
+              <Icon name="bell" size={15} />
+              <span>
+                {lang === "th"
+                  ? <><strong>ไม่ต้องเพิ่ม "ผู้แจ้งเรื่อง" ในลำดับนี้</strong> — ระบบจะเพิ่มผู้แจ้งเป็นขั้นแรกอัตโนมัติพร้อมลายเซ็นจากบัญชีผู้กรอกฟอร์ม ลำดับนี้ใส่เฉพาะ <strong>ผู้อนุมัติ</strong> ตั้งแต่คนแรกเป็นต้นไป</>
+                  : <><strong>Do not add "Requester" here</strong> — the system auto-adds the requester as step 0 with the signature from their account. List only the <strong>approvers</strong> starting from the first one.</>}
+              </span>
+            </div>
             <ApprovalChainEditor
               key={cur.code}
               approvers={editApprovers || []}

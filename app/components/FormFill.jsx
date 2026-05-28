@@ -131,7 +131,14 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
           if (submitting) return;
           setSubmitting(true);
           try {
-            const approvers = tmpl.approvers || [];
+            // Safety: filter out any "ผู้แจ้งเรื่อง / Requester" entry from the template
+            // chain — that step is added by us below and would otherwise duplicate.
+            const isRequesterRole = (r) => {
+              const role = typeof r === "string" ? r : (r.roleTh || r.roleEn || "");
+              const n = role.trim().toLowerCase();
+              return n === "ผู้แจ้งเรื่อง" || n === "ผู้แจ้ง" || n === "requester" || n === "submitter";
+            };
+            const approvers = (tmpl.approvers || []).filter(a => !isRequesterRole(a));
             const steps = [
               { role: lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester", user: currentUser?.id || "REQ003", action: "submitted", at: new Date().toISOString().slice(0,16).replace("T"," "), signed: true },
               ...approvers.map((a, i) => ({
