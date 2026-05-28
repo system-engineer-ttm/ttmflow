@@ -368,6 +368,7 @@ export function Settings({ lang, t, setRoute }) {
               key={cur.code}
               approvers={editApprovers || []}
               users={users}
+              tmpl={cur}
               lang={lang}
               onChange={setEditApprovers}
             />
@@ -428,21 +429,53 @@ function Token({ label, value, color }) {
   );
 }
 
-function ApprovalChainEditor({ approvers, users = [], lang, onChange }) {
-  // Per-step mode: "role" = free-text role name, "user" = pick specific user from DB
-  // Initialise from data: if userId is already set → user mode, else → role mode
+function ApprovalChainEditor({ approvers, users = [], tmpl, lang, onChange }) {
+  // Flatten template sections → list of { id, label } for the external-mode field picker
+  const formFields = React.useMemo(() => {
+    const out = [];
+    (tmpl?.sections || []).forEach(sec => {
+      (sec.fields || []).forEach(f => {
+        out.push({
+          id: f.id,
+          label: (lang === "th" ? f.labelTh : f.labelEn) || f.id,
+        });
+      });
+    });
+    return out;
+  }, [tmpl, lang]);
+
+  // Per-step mode: "role" | "user" | "external"
+  // Derive initial mode from stored data
+  const initialMode = (r) => {
+    if (typeof r !== "string") {
+      if (r.source === "external") return "external";
+      if (r.userId) return "user";
+    }
+    return "role";
+  };
   const [modeByIdx, setModeByIdx] = React.useState(() =>
-    Object.fromEntries(approvers.map((r, i) => [i, (typeof r !== "string" && r.userId) ? "user" : "role"]))
+    Object.fromEntries(approvers.map((r, i) => [i, initialMode(r)]))
   );
 
   const switchMode = (i, m) => {
     setModeByIdx(prev => ({ ...prev, [i]: m }));
+    const next = [...approvers];
+    const cur = next[i] || {};
     if (m === "role") {
-      // clear userId when going back to role mode
-      const next = [...approvers];
-      next[i] = { ...next[i], userId: "" };
-      onChange?.(next);
+      next[i] = { ...cur, userId: "", source: undefined, nameField: undefined, titleField: undefined };
+    } else if (m === "user") {
+      next[i] = { ...cur, source: undefined, nameField: undefined, titleField: undefined };
+    } else if (m === "external") {
+      next[i] = {
+        ...cur,
+        source: "external",
+        userId: "",
+        roleTh: cur.roleTh || "ผู้รับมอบ",
+        roleEn: cur.roleEn || "Receiver",
+        expiresInDays: cur.expiresInDays || 7,
+      };
     }
+    onChange?.(next);
   };
 
   const update = (i, patch) => {
@@ -488,7 +521,10 @@ function ApprovalChainEditor({ approvers, users = [], lang, onChange }) {
         const roleEn = typeof r === "string" ? r : (r.roleEn || "");
         const userId = typeof r === "string" ? "" : (r.userId || "");
         const sla   = typeof r === "string" ? 1 : (r.slaDays ?? 1);
-        const mode  = modeByIdx[i] ?? (userId ? "user" : "role");
+        const nameField = typeof r === "string" ? "" : (r.nameField || "");
+        const titleField = typeof r === "string" ? "" : (r.titleField || "");
+        const expiresInDays = typeof r === "string" ? 7 : (r.expiresInDays ?? 7);
+        const mode  = modeByIdx[i] ?? initialMode(r);
         const selUser = mode === "user" ? (users.find(u => u.id === userId) || null) : null;
 
         return (
@@ -508,9 +544,61 @@ function ApprovalChainEditor({ approvers, users = [], lang, onChange }) {
                   <Icon name="user" size={13} />
                   {lang === "th" ? "ระบุชื่อผู้ใช้" : "Specific user"}
                 </button>
+                <button type="button" className={cls("ttm-chain-mode-tab", mode === "external" && "is-active")}
+                  onClick={() => switchMode(i, "external")}>
+                  <Icon name="external" size={13} />
+                  {lang === "th" ? "ลิงก์ภายนอก" : "External link"}
+                </button>
               </div>
 
-              {mode === "role" ? (
+              {mode === "external" ? (
+                /* ── External link mode: signed by a non-user via a one-time link ── */
+                <>
+                  <div className="ttm-chain-fields">
+                    <Field label={lang === "th" ? "บทบาท (ไทย)" : "Role (TH)"}>
+                      <Input value={roleTh} onChange={e => update(i, { roleTh: e.target.value })} />
+                    </Field>
+                    <Field label={lang === "th" ? "บทบาท (EN)" : "Role (EN)"}>
+                      <Input value={roleEn} onChange={e => update(i, { roleEn: e.target.value })} />
+                    </Field>
+                    <Field label={lang === "th" ? "อายุลิงก์ (วัน)" : "Link expiry (days)"}>
+                      <Select value={String(expiresInDays)} onChange={e => update(i, { expiresInDays: Number(e.target.value) })}>
+                        <option value="1">1</option>
+                        <option value="3">3</option>
+                        <option value="7">7</option>
+                        <option value="14">14</option>
+                        <option value="30">30</option>
+                      </Select>
+                    </Field>
+                  </div>
+                  <div className="ttm-chain-fields" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                    <Field label={lang === "th" ? "ดึงชื่อจากฟิลด์" : "Map name from field"}>
+                      <Select value={nameField} onChange={e => update(i, { nameField: e.target.value })}>
+                        <option value="">{lang === "th" ? "— เลือกฟิลด์ —" : "— Select field —"}</option>
+                        {formFields.map(f => (
+                          <option key={f.id} value={f.id}>{f.label} ({f.id})</option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field label={lang === "th" ? "ดึงตำแหน่งจากฟิลด์ (ตัวเลือก)" : "Map title from field (optional)"}>
+                      <Select value={titleField} onChange={e => update(i, { titleField: e.target.value })}>
+                        <option value="">— —</option>
+                        {formFields.map(f => (
+                          <option key={f.id} value={f.id}>{f.label} ({f.id})</option>
+                        ))}
+                      </Select>
+                    </Field>
+                  </div>
+                  <div className="ttm-chain-external-note">
+                    <Icon name="external" size={13} />
+                    <span>
+                      {lang === "th"
+                        ? <>ขั้นนี้รอ <strong>ลิงก์เซ็นภายนอก</strong> — หลังขั้นก่อนหน้าอนุมัติเสร็จ ผู้อนุมัติคนสุดท้ายจะสร้างลิงก์แล้วส่งให้ผู้รับมอบเอง (ไม่ส่งอัตโนมัติ)</>
+                        : <>This step uses an <strong>external sign link</strong> — after the previous step approves, the last approver can generate a link and send it manually to the receiver (no auto-email).</>}
+                    </span>
+                  </div>
+                </>
+              ) : mode === "role" ? (
                 /* ── Role mode: free-text role name ── */
                 <div className="ttm-chain-fields">
                   <Field label={lang === "th" ? "บทบาท (ไทย)" : "Role (TH)"}>

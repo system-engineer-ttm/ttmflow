@@ -139,15 +139,32 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
               return n === "ผู้แจ้งเรื่อง" || n === "ผู้แจ้ง" || n === "requester" || n === "submitter";
             };
             const approvers = (tmpl.approvers || []).filter(a => !isRequesterRole(a));
+            // Resolve display values for external-signer steps from form data
+            const sch = state.sch || {};
             const steps = [
               { role: lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester", user: currentUser?.id || "REQ003", action: "submitted", at: new Date().toISOString().slice(0,16).replace("T"," "), signed: true },
-              ...approvers.map((a, i) => ({
-                role: typeof a === "string" ? a : (a.roleTh || a.roleEn || `Step ${i+1}`),
-                user: typeof a === "string" ? "" : (a.userId || ""),
-                action: i === 0 ? "pending" : "queued",
-                at: null,
-                signed: false,
-              })),
+              ...approvers.map((a, i) => {
+                const isExternal = typeof a === "object" && a.source === "external";
+                const baseRole = typeof a === "string" ? a : (a.roleTh || a.roleEn || `Step ${i+1}`);
+                if (isExternal) {
+                  return {
+                    role: baseRole,
+                    source: "external",
+                    user: "",
+                    displayName:  a.nameField  ? (sch[a.nameField]  || "") : "",
+                    displayTitle: a.titleField ? (sch[a.titleField] || "") : "",
+                    expiresInDays: a.expiresInDays || 7,
+                    action: i === 0 ? "pending" : "queued",
+                    at: null, signed: false,
+                  };
+                }
+                return {
+                  role: baseRole,
+                  user: typeof a === "string" ? "" : (a.userId || ""),
+                  action: i === 0 ? "pending" : "queued",
+                  at: null, signed: false,
+                };
+              }),
             ];
             // For dynamic-section forms use the template title; for legacy forms use the purpose text
             const reqTitleTh = hasSections

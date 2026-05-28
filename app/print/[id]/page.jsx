@@ -67,19 +67,29 @@ function FormIT0101({ req, tmpl, usersMap }) {
   const sch = req.payload?.sch || req.payload || {};
   const requester = usersMap[req.requester] || {};
   const steps = req.steps || [];
-  // Resolve approver/IT-staff info, falling back to the step's role name if no user is assigned
+  // Resolve approver/IT-staff info, falling back to step display data when no user is assigned
   const stepInfo = (s) => {
     if (!s) return null;
+    // External signer step — name comes from form field, signature from the step itself
+    if (s.source === "external") {
+      return {
+        nameTh: s.displayName || s.role || "",
+        titleTh: s.displayTitle || "",
+        signed: s.signed === true,
+        at: s.at,
+        signature: s.signature || null,
+      };
+    }
     const u = usersMap[s.user];
     if (u) return {
       nameTh: u.nameTh, titleTh: u.titleTh,
       signed: s.signed === true, at: s.at,
-      signature: u.signature || null,
+      signature: s.signature || u.signature || null,
     };
     if (s.role) return {
       nameTh: s.role, titleTh: "",
       signed: s.signed === true, at: s.at,
-      signature: null,
+      signature: s.signature || null,
     };
     return null;
   };
@@ -88,8 +98,15 @@ function FormIT0101({ req, tmpl, usersMap }) {
     signed: true, at: req.createdAt,
     signature: requester.signature || null,
   };
-  const approver = stepInfo(steps[1]);
-  const itStaff  = stepInfo(steps[steps.length - 1]);
+  // Smart mapping: if there's an external step → that's "ผู้รับมอบ" (col 3),
+  // and IT staff is the step before it. Otherwise fall back to old logic.
+  const externalIdx = steps.findIndex((s, i) => i > 0 && s.source === "external");
+  const itStaff = stepInfo(
+    externalIdx > 0 ? steps[externalIdx - 1] : steps[steps.length - 1]
+  );
+  const approver = stepInfo(
+    externalIdx > 0 ? steps[externalIdx] : steps[1]
+  );
 
   const docNo = req.id;
   const fmtDate = (d) => {

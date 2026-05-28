@@ -172,6 +172,9 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
             </Card>
           )}
 
+          <ExternalSignerCards req={req} currentUser={currentUser} role={role} lang={lang} />
+
+
           <Card>
             <SectionTitle title={lang === "th" ? "การแจ้งเตือนสำหรับคำขอนี้" : "Notifications for this request"} />
             <ul className="ttm-mini-notif-list">
@@ -713,3 +716,191 @@ function SignatureModal({ lang, decision, onClose, onConfirm, busy }) {
     </div>
   );
 }
+
+/* ═════════════════════════════════════════════════════════════════════
+   External signer cards — show one card per external step in the chain
+   ═════════════════════════════════════════════════════════════════════ */
+function ExternalSignerCards({ req, currentUser, role, lang }) {
+  const externalSteps = (req.steps || [])
+    .map((s, i) => ({ ...s, idx: i }))
+    .filter(s => s.source === "external");
+
+  if (externalSteps.length === 0) return null;
+
+  // Only chain participants (anyone who signed a step) or admin can see/manage links
+  const canManage = currentUser && (
+    role === "admin" ||
+    (req.steps || []).some(s => s.user === currentUser.id && s.signed)
+  );
+  if (!canManage) return null;
+
+  return externalSteps.map(s => (
+    <ExternalSignerCard key={s.idx} req={req} step={s} stepIdx={s.idx} lang={lang} />
+  ));
+}
+
+function ExternalSignerCard({ req, step, stepIdx, lang }) {
+  const { refreshRequests } = useAppData();
+  const [tokens, setTokens] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [newLink, setNewLink] = React.useState(null);   // freshly created (plaintext shown once)
+  const [copied, setCopied] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  const reload = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/requests/${encodeURIComponent(req.id)}/signing-tokens`);
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Load failed"); return; }
+      setTokens((data.tokens || []).filter(t => t.stepIdx === stepIdx));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [req.id, stepIdx]);
+
+  React.useEffect(() => { reload(); }, [reload]);
+
+  const generate = async () => {
+    setBusy(true); setError(""); setCopied(false);
+    try {
+      const res = await fetch(`/api/requests/${encodeURIComponent(req.id)}/signing-tokens`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepIdx, expiresInDays: step.expiresInDays || 7 }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Create failed"); return; }
+      setNewLink(data);
+      await reload();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const revoke = async (tokenId) => {
+    if (!confirm(lang === "th" ? "ยกเลิกลิงก์นี้?" : "Revoke this link?")) return;
+    setBusy(true);
+    try {
+      await fetch(`/api/requests/${encodeURIComponent(req.id)}/signing-tokens?id=${tokenId}`, { method: "DELETE" });
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
+
+  const activeToken = tokens.find(t => !t.usedAt && new Date(t.expiresAt).getTime() > Date.now());
+  const completedToken = tokens.find(t => t.usedAt);
+  const stepName = step.displayName || step.role || `Step ${stepIdx + 1}`;
+
+  // Once signed, just show a tiny status card
+  if (step.signed && completedToken) {
+    return (
+      <Card>
+        <SectionTitle title={lang === "th" ? "ลิงก์เซ็นภายนอก" : "External sign link"} />
+        <div className="ttm-ext-status ttm-ext-status-done">
+          <Icon name="check-circle" size={16} />
+          <div>
+            <strong>{stepName}</strong>
+            <div className="ttm-muted ttm-small">
+              {lang === "th" ? "เซ็นแล้วเมื่อ" : "Signed at"} {String(completedToken.usedAt).replace("T", " ").slice(0, 16)}
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <SectionTitle title={lang === "th" ? "ลิงก์เซ็นภายนอก" : "External sign link"} />
+      <div className="ttm-ext-info">
+        <div>
+          <div className="ttm-small ttm-muted">{lang === "th" ? "ผู้รับมอบ:" : "Receiver:"}</div>
+          <strong>{stepName}</strong>
+          {step.displayTitle && <div className="ttm-muted ttm-small">{step.displayTitle}</div>}
+        </div>
+      </div>
+
+      {newLink && (
+        <div className="ttm-ext-link-box">
+          <div className="ttm-small" style={{ fontWeight: 600, marginBottom: 4 }}>
+            {lang === "th" ? "ลิงก์สำหรับผู้รับมอบ:" : "Link for the receiver:"}
+          </div>
+          <div className="ttm-ext-link-url">{newLink.url}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <Button variant="primary" size="sm" icon={copied ? "check" : "copy"}
+              onClick={() => copyToClipboard(newLink.url)}>
+              {copied
+                ? (lang === "th" ? "คัดลอกแล้ว ✓" : "Copied ✓")
+                : (lang === "th" ? "คัดลอกลิงก์" : "Copy link")}
+            </Button>
+            <span className="ttm-muted ttm-small" style={{ alignSelf: "center" }}>
+              {lang === "th" ? "หมดอายุ: " : "Expires: "}
+              {new Date(newLink.expiresAt).toLocaleDateString("th-TH", { dateStyle: "medium" })}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {!newLink && activeToken && (
+        <div className="ttm-ext-link-box">
+          <div className="ttm-small ttm-muted">
+            {lang === "th"
+              ? "มีลิงก์ที่ใช้งานอยู่ — คัดลอกอีกครั้งไม่ได้ (หาก URL หาย ต้องสร้างใหม่)"
+              : "An active link exists — cannot copy again (regenerate if URL was lost)"}
+          </div>
+          <div className="ttm-small" style={{ marginTop: 6 }}>
+            {lang === "th" ? "สร้างเมื่อ: " : "Created: "}
+            {String(activeToken.createdAt).replace("T", " ").slice(0, 16)}
+            {" · "}
+            {lang === "th" ? "หมดอายุ: " : "Expires: "}
+            {String(activeToken.expiresAt).replace("T", " ").slice(0, 16)}
+            {activeToken.openedAt && (
+              <span style={{ color: "var(--c-amber, #d97706)" }}>
+                {" · "}{lang === "th" ? "เปิดแล้ว" : "Opened"}
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <Button variant="secondary" size="sm" icon="trash" onClick={() => revoke(activeToken.id)} disabled={busy}>
+              {lang === "th" ? "ยกเลิก & สร้างใหม่" : "Revoke & regenerate"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!newLink && !activeToken && (
+        <Button variant="primary" icon="external" onClick={generate} disabled={busy || loading}>
+          {busy
+            ? (lang === "th" ? "กำลังสร้าง..." : "Generating...")
+            : (lang === "th" ? "สร้างลิงก์เซ็นเอกสาร" : "Generate sign link")}
+        </Button>
+      )}
+
+      {error && <div className="ttm-ext-error">{error}</div>}
+
+      <div className="ttm-ext-foot">
+        <Icon name="bell" size={12} />
+        <span>
+          {lang === "th"
+            ? "ลิงก์นี้ใช้ได้ครั้งเดียว — คัดลอกแล้วส่งให้ผู้รับมอบทางช่องทางที่สะดวก (LINE, Messenger ฯลฯ)"
+            : "Single-use link — copy and send to the receiver via your preferred channel"}
+        </span>
+      </div>
+    </Card>
+  );
+}
+
