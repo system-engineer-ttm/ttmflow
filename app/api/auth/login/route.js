@@ -53,6 +53,8 @@ function dbRowToUser(u) {
     titleTh: u.title_th, titleEn: u.title_en,
     dept: u.dept, avatar: u.avatar, color: u.color,
     username: u.username, role: u.role, isActive: u.is_active,
+    signature: u.signature || null,
+    hasSignature: !!u.signature,
   };
 }
 

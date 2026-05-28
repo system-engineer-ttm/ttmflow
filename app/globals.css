@@ -1354,6 +1354,44 @@ p { margin: 0; color: var(--text-2); }
 .ttm-sig-upload strong { display: block; font-size: 14px; }
 .ttm-sig-upload p { font-size: 12px; margin-top: 4px; }
 
+/* Signature Setup modal-specific */
+.ttm-sig-setup-info {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  background: var(--brand-soft);
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+.ttm-sig-setup-info svg { color: var(--brand); flex-shrink: 0; }
+.ttm-sig-setup-error {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: #fef2f2; border: 1px solid #fecaca;
+  color: #991b1b; border-radius: 8px;
+  font-size: 0.85rem;
+}
+[data-theme=dark] .ttm-sig-setup-error { background: #2a1414; border-color: #5f2120; color: #fca5a5; }
+.ttm-sig-setup-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface-2); border-radius: 8px;
+  font-size: 0.75rem; color: var(--muted); line-height: 1.5;
+}
+.ttm-sig-setup-note svg { color: var(--brand); flex-shrink: 0; margin-top: 2px; }
+.ttm-sig-upload-zone { min-height: 180px; }
+.ttm-sig-upload-preview {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface-2);
+}
+.ttm-sig-upload-preview img {
+  max-width: 100%; max-height: 200px;
+  background: white; border-radius: 6px;
+  padding: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
 .ttm-sig-pinpad { padding: 14px 60px 4px; }
 .ttm-sig-pin-display {
   letter-spacing: 14px;

@@ -18,7 +18,7 @@ export async function GET() {
     const db = createServiceClient();
     const { data, error } = await db
       .from("users")
-      .select("id,name_th,name_en,title_th,title_en,dept,avatar,color,username,role,is_active")
+      .select("id,name_th,name_en,title_th,title_en,dept,avatar,color,username,role,is_active,signature")
       .order("id");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data.map(toUser));
@@ -68,5 +68,7 @@ function toUser(u) {
     titleTh: u.title_th, titleEn: u.title_en,
     dept: u.dept, avatar: u.avatar, color: u.color,
     username: u.username, role: u.role, isActive: u.is_active,
+    signature: u.signature || null,
+    hasSignature: !!u.signature,
   };
 }

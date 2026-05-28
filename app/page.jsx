@@ -19,6 +19,7 @@ import { FlowBuilder } from "./components/FlowBuilder";
 import { Submitted } from "./components/Submitted";
 import { Login } from "./components/Login";
 import { UserManagement } from "./components/UserManagement";
+import { SignatureSetup } from "./components/SignatureSetup";
 
 const TWEAK_DEFAULTS = {
   lang: "th",
@@ -257,8 +258,22 @@ function AppShell() {
   else
     screen = <Dashboard lang={lang} role={role} t={tt} setRoute={setRouteWithReset} openRequest={openRequest} currentUser={currentUser} />;
 
+  // Block app behind SignatureSetup if user has no signature on file
+  const needsSignature = currentUser && !currentUser.hasSignature;
+  const handleSignatureSaved = (sig) => {
+    setCurrentUser(prev => prev ? { ...prev, signature: sig, hasSignature: true } : prev);
+  };
+
   return (
     <div className={cls("ttm-app", `theme-${t.theme}`, `density-${t.density}`)}>
+      {needsSignature && (
+        <SignatureSetup
+          lang={lang}
+          currentUser={currentUser}
+          dismissible={false}
+          onSaved={handleSignatureSaved}
+        />
+      )}
       <Sidebar
         lang={lang} route={route} setRoute={setRouteWithReset} role={role} t={tt}
         onLogout={handleLogout}
@@ -326,7 +341,64 @@ function AppShell() {
             </div>
           </TweakSection>
         )}
+
+        {/* Signature management */}
+        {currentUser && (
+          <TweakSection title={lang === "th" ? "ลายเซ็นของฉัน" : "My signature"}>
+            <SignaturePreview lang={lang} currentUser={currentUser} onChanged={handleSignatureSaved} />
+          </TweakSection>
+        )}
       </TweaksPanel>
+    </div>
+  );
+}
+
+function SignaturePreview({ lang, currentUser, onChanged }) {
+  const [editing, setEditing] = React.useState(false);
+  if (editing) {
+    return (
+      <SignatureSetup
+        lang={lang}
+        currentUser={currentUser}
+        dismissible={true}
+        onSkip={() => setEditing(false)}
+        onSaved={(sig) => { onChanged?.(sig); setEditing(false); }}
+      />
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "0.78rem" }}>
+      {currentUser.signature ? (
+        <>
+          <div style={{
+            background: "#fff",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: 6,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            minHeight: 60,
+          }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={currentUser.signature} alt="signature"
+              style={{ maxHeight: 50, maxWidth: "100%", objectFit: "contain" }} />
+          </div>
+          <button
+            className="ttm-link"
+            style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 4 }}
+            onClick={() => setEditing(true)}
+          >
+            <Icon name="edit" size={11} /> {lang === "th" ? "เปลี่ยนลายเซ็น" : "Update signature"}
+          </button>
+        </>
+      ) : (
+        <button
+          className="ttm-link"
+          onClick={() => setEditing(true)}
+          style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+        >
+          <Icon name="signature" size={12} /> {lang === "th" ? "ตั้งลายเซ็น" : "Set up signature"}
+        </button>
+      )}
     </div>
   );
 }

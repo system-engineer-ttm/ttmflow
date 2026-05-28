@@ -71,9 +71,22 @@ function FormIT0101({ req, tmpl, usersMap }) {
   const stepInfo = (s) => {
     if (!s) return null;
     const u = usersMap[s.user];
-    if (u) return { nameTh: u.nameTh, titleTh: u.titleTh, signed: s.signed === true, at: s.at };
-    if (s.role) return { nameTh: s.role, titleTh: "", signed: s.signed === true, at: s.at };
+    if (u) return {
+      nameTh: u.nameTh, titleTh: u.titleTh,
+      signed: s.signed === true, at: s.at,
+      signature: u.signature || null,
+    };
+    if (s.role) return {
+      nameTh: s.role, titleTh: "",
+      signed: s.signed === true, at: s.at,
+      signature: null,
+    };
     return null;
+  };
+  const requesterInfo = stepInfo(steps[0]) || {
+    nameTh: requester.nameTh, titleTh: requester.titleTh,
+    signed: true, at: req.createdAt,
+    signature: requester.signature || null,
   };
   const approver = stepInfo(steps[1]);
   const itStaff  = stepInfo(steps[steps.length - 1]);
@@ -258,9 +271,9 @@ function FormIT0101({ req, tmpl, usersMap }) {
             </thead>
             <tbody>
               <tr>
-                <SigCell name={requester.nameTh} title={requester.titleTh} signed={steps[0]?.signed === true} at={steps[0]?.at} />
-                <SigCell name={itStaff?.nameTh}  title={itStaff?.titleTh}  signed={itStaff?.signed}    at={itStaff?.at} />
-                <SigCell name={approver?.nameTh} title={approver?.titleTh} signed={approver?.signed}   at={approver?.at} />
+                <SigCell name={requesterInfo.nameTh} title={requesterInfo.titleTh} signed={requesterInfo.signed} at={requesterInfo.at} signature={requesterInfo.signature} />
+                <SigCell name={itStaff?.nameTh}  title={itStaff?.titleTh}  signed={itStaff?.signed}    at={itStaff?.at}  signature={itStaff?.signature} />
+                <SigCell name={approver?.nameTh} title={approver?.titleTh} signed={approver?.signed}   at={approver?.at} signature={approver?.signature} />
               </tr>
             </tbody>
           </table>
@@ -408,7 +421,7 @@ function PageFooter({ pageNum, totalPages }) {
   );
 }
 
-function SigCell({ name, title, signed, at }) {
+function SigCell({ name, title, signed, at, signature }) {
   // Parse "YYYY-MM-DD HH:mm" → { dd, mm, yy }
   let dd = "", mm = "", yy = "";
   if (at) {
@@ -420,6 +433,12 @@ function SigCell({ name, title, signed, at }) {
       {signed && (
         <div className="sig-stamp">
           <span>✓ ลงนามอิเล็กทรอนิกส์</span>
+        </div>
+      )}
+      {signed && signature && (
+        <div className="sig-img-wrap">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={signature} alt="signature" className="sig-img" />
         </div>
       )}
       <div className="sig-row">
@@ -718,6 +737,22 @@ function PrintStyles() {
         border-radius: 4px;
         padding: 1px 6px;
         font-weight: 600;
+      }
+      .sig-img-wrap {
+        position: absolute;
+        top: 22px; left: 50%;
+        transform: translateX(-50%);
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      .sig-img {
+        max-height: 38px;
+        max-width: 80%;
+        object-fit: contain;
+        mix-blend-mode: multiply;
       }
       .sig-date-slot {
         text-align: center;
