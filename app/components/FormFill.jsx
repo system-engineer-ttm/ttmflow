@@ -5,12 +5,11 @@ import { cls, Avatar, Badge, Button, Card, Check, Field, Input, Select, Stepper,
 import { shortFormCode } from "../lib/data";
 import { useAppData } from "../lib/AppDataContext";
 
-function genDocNo(code) {
+// Local fallback when the running-number API is unreachable
+function genDocNoFallback(code) {
   const d = new Date();
   const yymmdd = `${String(d.getFullYear()).slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  // Use random suffix per fill — avoids PK collisions when the same tab
-  // is used to submit multiple requests in one session.
-  const n = String(Math.floor(Math.random() * 9000) + 1000); // 4-digit 1000–9999
+  const n = String(Math.floor(Math.random() * 9000) + 1000);
   return `${shortFormCode(code)}-${yymmdd}-${n}`;
 }
 
@@ -22,7 +21,7 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
   const [stepIdx, setStepIdx] = React.useState(0);
   const today = new Date().toISOString().slice(0, 10);
   const [state, setState] = React.useState(() => ({
-    docNo: genDocNo(tmpl.code),
+    docNo: "",  // will be filled in by server-side running-number API on mount
     // Hardcoded path defaults (used when template has no sections)
     employeeName: lang === "th" ? "นพดล ศรีจันทร์" : "Nopadol Srichan",
     employeeId: "EMP-2526-014",
@@ -58,6 +57,19 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
 
   const set = (k, v) => setState(s => ({ ...s, [k]: v }));
   const setItem = (k, v) => setState(s => ({ ...s, items: { ...s.items, [k]: v } }));
+
+  // Reserve a real running document number from the server when the form mounts
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/forms/${encodeURIComponent(tmpl.code)}/next-number`, { method: "POST" })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(d => { if (!cancelled && d?.docNo) setState(s => ({ ...s, docNo: d.docNo })); })
+      .catch(err => {
+        console.warn("next-number API failed, using fallback:", err);
+        if (!cancelled) setState(s => ({ ...s, docNo: genDocNoFallback(tmpl.code) }));
+      });
+    return () => { cancelled = true; };
+  }, [tmpl.code]);
 
   const steps = lang === "th"
     ? ["ข้อมูลผู้แจ้ง", "รายละเอียดคำขอ", "ผู้อนุมัติ", "ตรวจสอบ & ส่ง"]
@@ -125,8 +137,8 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
         }}>{t.common.saveDraft}</Button>
         {stepIdx > 0 && <Button variant="secondary" icon="arrow-left" onClick={() => setStepIdx(stepIdx - 1)}>{t.common.back}</Button>}
         {stepIdx < 3 && <Button variant="primary" onClick={() => setStepIdx(stepIdx + 1)}>{t.common.next} <Icon name="arrow-right" size={15} /></Button>}
-        {stepIdx === 3 && <Button variant="primary" icon="send" disabled={submitting} onClick={async () => {
-          if (submitting) return;
+        {stepIdx === 3 && <Button variant="primary" icon="send" disabled={submitting || !state.docNo} onClick={async () => {
+          if (submitting || !state.docNo) return;
           setSubmitting(true);
             // Safety: filter out any "ผู้แจ้งเรื่อง / Requester" entry from the template
             // chain — that step is added by us below and would otherwise duplicate.
