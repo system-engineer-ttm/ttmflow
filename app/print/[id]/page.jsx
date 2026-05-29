@@ -119,8 +119,9 @@ function FormIT0101({ req, tmpl, usersMap }) {
     } catch { return d; }
   };
 
-  // Convenience helpers
-  const cb = (v) => (v ? "[✓]" : "[  ]");
+  // Convenience helpers — use   (non-breaking space) so the inner
+  // gap of the empty checkbox doesn't collapse to a single space.
+  const cb = (v) => (v ? "[  ✓ ]" : "[    ]");
   const checked = (id) => {
     const v = sch[id];
     return v && typeof v === "object" ? v.checked === true : v === true;
@@ -350,14 +351,14 @@ function GenericFieldRow({ field, value }) {
       <div className="line" style={{ marginBottom: 4 }}>
         <span className="hint" style={{ marginRight: 12 }}>{label}:</span>
         {field.options.map(o => (
-          <span key={o.id} style={{ marginRight: 16 }}>{value === o.id ? "[✓]" : "[  ]"} {o.labelTh}</span>
+          <span key={o.id} style={{ marginRight: 16 }}>{value === o.id ? "[  ✓ ]" : "[    ]"} {o.labelTh}</span>
         ))}
       </div>
     );
   }
   if (field.type === "checkbox" && !hasOpts) {
     const checked = value && typeof value === "object" ? value.checked === true : value === true;
-    return <div className="cb-line">{checked ? "[✓]" : "[  ]"} {label}</div>;
+    return <div className="cb-line">{checked ? "[  ✓ ]" : "[    ]"} {label}</div>;
   }
   return (
     <div className="sub-line">
