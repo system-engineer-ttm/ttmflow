@@ -98,15 +98,16 @@ function FormIT0101({ req, tmpl, usersMap }) {
     signed: true, at: req.createdAt,
     signature: requester.signature || null,
   };
-  // Smart mapping: if there's an external step → that's "ผู้รับมอบ" (col 3),
-  // and IT staff is the step before it. Otherwise fall back to old logic.
-  const externalIdx = steps.findIndex((s, i) => i > 0 && s.source === "external");
-  const itStaff = stepInfo(
-    externalIdx > 0 ? steps[externalIdx - 1] : steps[steps.length - 1]
-  );
-  const approver = stepInfo(
-    externalIdx > 0 ? steps[externalIdx] : steps[1]
-  );
+  // Column mapping for the signature table:
+  //   Col 1 (ผู้แจ้งเรื่อง) = step 0 (the requester)
+  //   Col 3 (ผู้รับมอบ)    = the LAST step in the chain (the receiver — may be external)
+  //   Col 2 (เจ้าหน้าที่ไอที) = the step immediately before the receiver (the IT staff
+  //                              who fulfilled / handed over)
+  const lastIdx = steps.length - 1;
+  const receiverIdx = lastIdx >= 1 ? lastIdx : -1;
+  const itStaffIdx  = lastIdx >= 2 ? lastIdx - 1 : -1;
+  const itStaff = itStaffIdx  >= 0 ? stepInfo(steps[itStaffIdx])  : null;
+  const approver = receiverIdx >= 0 ? stepInfo(steps[receiverIdx]) : null;
 
   const docNo = req.id;
   const fmtDate = (d) => {
@@ -740,9 +741,10 @@ function PrintStyles() {
         padding: 6px 8px;
       }
       .sig-cell {
-        height: 120px;
+        height: 130px;
         max-width: 0;  /* together with table-layout: fixed prevents cell expand */
         position: relative;
+        padding-top: 26px !important;  /* reserve space for signature image at top */
       }
       .sig-stamp {
         position: absolute;
@@ -757,19 +759,21 @@ function PrintStyles() {
       }
       .sig-img-wrap {
         position: absolute;
-        top: 22px; left: 50%;
-        transform: translateX(-50%);
-        height: 38px;
+        left: 0; right: 0;
+        top: 0;
+        height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
         pointer-events: none;
       }
       .sig-img {
-        max-height: 38px;
-        max-width: 80%;
+        max-height: 22px;
+        max-width: 70%;
         object-fit: contain;
         mix-blend-mode: multiply;
+        opacity: 0.9;
+        transform: rotate(-2deg);
       }
       .sig-date-slot {
         text-align: center;
