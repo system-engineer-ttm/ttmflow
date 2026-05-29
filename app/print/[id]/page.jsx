@@ -744,10 +744,10 @@ function PrintStyles() {
         padding: 6px 8px;
       }
       .sig-cell {
-        height: 130px;
+        height: 150px;
         max-width: 0;  /* together with table-layout: fixed prevents cell expand */
         position: relative;
-        padding-top: 26px !important;  /* reserve space for signature image at top */
+        padding-top: 44px !important;  /* reserve space for signature image at top */
       }
       .sig-stamp {
         position: absolute;
@@ -763,16 +763,16 @@ function PrintStyles() {
       .sig-img-wrap {
         position: absolute;
         left: 0; right: 0;
-        top: 0;
-        height: 24px;
+        top: 2px;
+        height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
         pointer-events: none;
       }
       .sig-img {
-        max-height: 22px;
-        max-width: 70%;
+        max-height: 40px;
+        max-width: 85%;
         object-fit: contain;
         mix-blend-mode: multiply;
         opacity: 0.9;
