@@ -451,11 +451,6 @@ function SigCell({ name, title, signed, at, signature }) {
   const displayName = signature ? "" : (name || "");
   return (
     <td className="sig-cell">
-      {signed && (
-        <div className="sig-stamp">
-          <span>✓ ลงนามอิเล็กทรอนิกส์</span>
-        </div>
-      )}
       {signed && signature && (
         <div className="sig-img-wrap">
           {/* eslint-disable-next-line @next/next/no-img-element */}
