@@ -721,9 +721,14 @@ function SignatureModal({ lang, decision, onClose, onConfirm, busy }) {
    External signer cards — show one card per external step in the chain
    ═════════════════════════════════════════════════════════════════════ */
 function ExternalSignerCards({ req, currentUser, role, lang }) {
+  // Show a link card for any unsigned step in the chain (after step 0) that
+  // either is explicitly external OR has no registered user assigned.
+  // This covers requests created before the template was switched to
+  // "ลิงก์ภายนอก" mode, plus role-only steps where there's no in-app
+  // approver to ping.
   const externalSteps = (req.steps || [])
     .map((s, i) => ({ ...s, idx: i }))
-    .filter(s => s.source === "external");
+    .filter(s => s.idx > 0 && !s.signed && (s.source === "external" || !s.user));
 
   if (externalSteps.length === 0) return null;
 

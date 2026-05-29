@@ -89,11 +89,14 @@ export async function POST(request, { params }) {
 
   const step = (r.steps || [])[stepIdx];
   if (!step) return NextResponse.json({ error: "Step not found" }, { status: 404 });
-  if (step.source !== "external") {
-    return NextResponse.json({ error: "Step is not external" }, { status: 400 });
-  }
   if (step.signed) {
     return NextResponse.json({ error: "Step is already signed" }, { status: 409 });
+  }
+  // Allow link generation for any step that is either explicitly external
+  // or has no in-app user to sign it. Steps tied to a real user must be
+  // signed inside the app.
+  if (step.source !== "external" && step.user) {
+    return NextResponse.json({ error: "Step has an assigned user — sign inside the app" }, { status: 400 });
   }
 
   const plaintext = genToken();
