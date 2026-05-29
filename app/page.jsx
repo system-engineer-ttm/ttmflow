@@ -53,6 +53,7 @@ function AppShell() {
   // ── Auth state ───────────────────────────────────────────────────────────
   const [currentUser, setCurrentUser] = React.useState(null);
   const [authChecked, setAuthChecked] = React.useState(false);
+  const [editingSignature, setEditingSignature] = React.useState(false);
 
   // Restore session from httpOnly cookie on mount
   React.useEffect(() => {
@@ -260,7 +261,6 @@ function AppShell() {
 
   // Block app behind SignatureSetup if user has no signature on file
   const needsSignature = currentUser && !currentUser.hasSignature;
-  const [editingSignature, setEditingSignature] = React.useState(false);
   const handleSignatureSaved = (sig) => {
     setCurrentUser(prev => prev ? { ...prev, signature: sig, hasSignature: true } : prev);
     setEditingSignature(false);
