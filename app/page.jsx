@@ -260,7 +260,10 @@ function AppShell() {
     screen = <Dashboard lang={lang} role={role} t={tt} setRoute={setRouteWithReset} openRequest={openRequest} currentUser={currentUser} />;
 
   // Block app behind SignatureSetup if user has no signature on file
-  const needsSignature = currentUser && !currentUser.hasSignature;
+  // Check signature directly (not the boolean flag) so the gate releases as
+  // soon as the field is populated — regardless of whether the API also
+  // returned hasSignature.
+  const needsSignature = !!currentUser && !currentUser.signature;
   const handleSignatureSaved = (sig) => {
     setCurrentUser(prev => prev ? { ...prev, signature: sig, hasSignature: true } : prev);
     setEditingSignature(false);
