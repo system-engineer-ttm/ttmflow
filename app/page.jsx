@@ -260,17 +260,20 @@ function AppShell() {
 
   // Block app behind SignatureSetup if user has no signature on file
   const needsSignature = currentUser && !currentUser.hasSignature;
+  const [editingSignature, setEditingSignature] = React.useState(false);
   const handleSignatureSaved = (sig) => {
     setCurrentUser(prev => prev ? { ...prev, signature: sig, hasSignature: true } : prev);
+    setEditingSignature(false);
   };
 
   return (
     <div className={cls("ttm-app", `theme-${t.theme}`, `density-${t.density}`)}>
-      {needsSignature && (
+      {(needsSignature || editingSignature) && (
         <SignatureSetup
           lang={lang}
           currentUser={currentUser}
-          dismissible={false}
+          dismissible={!needsSignature}
+          onSkip={() => setEditingSignature(false)}
           onSaved={handleSignatureSaved}
         />
       )}
@@ -345,7 +348,7 @@ function AppShell() {
         {/* Signature management */}
         {currentUser && (
           <TweakSection title={lang === "th" ? "ลายเซ็นของฉัน" : "My signature"}>
-            <SignaturePreview lang={lang} currentUser={currentUser} onChanged={handleSignatureSaved} />
+            <SignaturePreview lang={lang} currentUser={currentUser} onEdit={() => setEditingSignature(true)} />
           </TweakSection>
         )}
       </TweaksPanel>
@@ -353,19 +356,7 @@ function AppShell() {
   );
 }
 
-function SignaturePreview({ lang, currentUser, onChanged }) {
-  const [editing, setEditing] = React.useState(false);
-  if (editing) {
-    return (
-      <SignatureSetup
-        lang={lang}
-        currentUser={currentUser}
-        dismissible={true}
-        onSkip={() => setEditing(false)}
-        onSaved={(sig) => { onChanged?.(sig); setEditing(false); }}
-      />
-    );
-  }
+function SignaturePreview({ lang, currentUser, onEdit }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "0.78rem" }}>
       {currentUser.signature ? (
@@ -385,7 +376,7 @@ function SignaturePreview({ lang, currentUser, onChanged }) {
           <button
             className="ttm-link"
             style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 4 }}
-            onClick={() => setEditing(true)}
+            onClick={onEdit}
           >
             <Icon name="edit" size={11} /> {lang === "th" ? "เปลี่ยนลายเซ็น" : "Update signature"}
           </button>
@@ -393,7 +384,7 @@ function SignaturePreview({ lang, currentUser, onChanged }) {
       ) : (
         <button
           className="ttm-link"
-          onClick={() => setEditing(true)}
+          onClick={onEdit}
           style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
         >
           <Icon name="signature" size={12} /> {lang === "th" ? "ตั้งลายเซ็น" : "Set up signature"}
