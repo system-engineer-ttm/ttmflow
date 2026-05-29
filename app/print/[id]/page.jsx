@@ -446,6 +446,9 @@ function SigCell({ name, title, signed, at, signature }) {
     const m = String(at).match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (m) { yy = m[1].slice(-2); mm = m[2]; dd = m[3]; }
   }
+  // When a real signature image is present, hide the typed name (the image
+  // replaces it visually — like a hand-signed paper form).
+  const displayName = signature ? "" : (name || "");
   return (
     <td className="sig-cell">
       {signed && (
@@ -462,7 +465,7 @@ function SigCell({ name, title, signed, at, signature }) {
       <div className="sig-row">
         <span className="sig-label">ลงชื่อ :</span>
         <span className="sig-fill">
-          <span className="sig-text" title={name || ""}>{name || ""}</span>
+          <span className="sig-text" title={name || ""}>{displayName}</span>
         </span>
       </div>
       <div className="sig-row">
@@ -473,11 +476,11 @@ function SigCell({ name, title, signed, at, signature }) {
       </div>
       <div className="sig-row sig-date-row">
         <span className="sig-label">วันที่ :</span>
-        <span className="sig-date-slot">{dd}</span>
+        <span className={"sig-date-slot" + (dd ? " is-filled" : "")}>{dd}</span>
         <span className="sig-slash">/</span>
-        <span className="sig-date-slot">{mm}</span>
+        <span className={"sig-date-slot" + (mm ? " is-filled" : "")}>{mm}</span>
         <span className="sig-slash">/</span>
-        <span className="sig-date-slot">{yy}</span>
+        <span className={"sig-date-slot" + (yy ? " is-filled" : "")}>{yy}</span>
       </div>
     </td>
   );
@@ -780,6 +783,10 @@ function PrintStyles() {
         font-weight: 500;
         font-size: 11px;
         padding: 0 2px;
+      }
+      .sig-date-slot.is-filled {
+        border-bottom: none;
+        background: #fff;
       }
       .sig-row {
         margin: 6px 0;
