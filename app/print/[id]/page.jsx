@@ -120,7 +120,7 @@ function FormIT0101({ req, tmpl, usersMap }) {
   };
 
   // Convenience helpers
-  const cb = (v) => (v ? "☑" : "☐");
+  const cb = (v) => (v ? "[✓]" : "[  ]");
   const checked = (id) => {
     const v = sch[id];
     return v && typeof v === "object" ? v.checked === true : v === true;
@@ -350,14 +350,14 @@ function GenericFieldRow({ field, value }) {
       <div className="line" style={{ marginBottom: 4 }}>
         <span className="hint" style={{ marginRight: 12 }}>{label}:</span>
         {field.options.map(o => (
-          <span key={o.id} style={{ marginRight: 16 }}>{value === o.id ? "☑" : "☐"} {o.labelTh}</span>
+          <span key={o.id} style={{ marginRight: 16 }}>{value === o.id ? "[✓]" : "[  ]"} {o.labelTh}</span>
         ))}
       </div>
     );
   }
   if (field.type === "checkbox" && !hasOpts) {
     const checked = value && typeof value === "object" ? value.checked === true : value === true;
-    return <div className="cb-line">{checked ? "☑" : "☐"} {label}</div>;
+    return <div className="cb-line">{checked ? "[✓]" : "[  ]"} {label}</div>;
   }
   return (
     <div className="sub-line">
@@ -646,11 +646,11 @@ function PrintStyles() {
       /* Section title */
       .sec-title {
         font-weight: 700;
-        margin: 12px 0 4px;
+        margin: 18px 0 8px;
         font-size: 13.5px;
       }
       .sec-body {
-        margin-bottom: 6px;
+        margin-bottom: 12px;
       }
 
       /* Field with dotted underline */
@@ -658,7 +658,8 @@ function PrintStyles() {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        margin-bottom: 6px;
+        margin-bottom: 10px;
+        line-height: 1.6;
       }
       .field {
         display: inline-flex;
@@ -679,7 +680,8 @@ function PrintStyles() {
       /* Checkbox lines */
       .cb-line {
         font-size: 12.5px;
-        padding: 1px 0;
+        padding: 4px 0;
+        line-height: 1.5;
       }
       .indent {
         padding-left: 24px;
