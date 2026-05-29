@@ -433,7 +433,7 @@ function PageFooter({ pageNum, totalPages }) {
   return (
     <div className="page-footer">
       <div className="footer-disclaimer">
-        ข้าพเจ้าได้รับทราบ ลำดับขั้นตอนของเอกสารตามที่ระบุไว้แล้วได้ปฏิบัติงานเป็นบรรลุตามที่กำหนดให้ปฏิบัติเรียบร้อย
+        ห้ามคัดลอก สำเนา หรือนำออกนอกบริษัทโดยไม่ได้รับอนุญาตเป็นลายลักษณ์อักษร
       </div>
       <div className="footer-page">หน้า {pageNum} จาก {totalPages}</div>
     </div>
