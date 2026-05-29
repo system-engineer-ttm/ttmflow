@@ -196,7 +196,7 @@ export function Settings({ lang, t, setRoute }) {
         return { roleTh: a.roleTh || a.roleEn || "", roleEn: a.roleEn || a.roleTh || "", slaDays: a.slaDays ?? 1, userId: a.userId || "" };
       });
       setEditApprovers(normalized);
-      setEditNumbering(cur.numbering || { reset: "year", digits: "4", current: "0143" });
+      setEditNumbering(cur.numbering || { reset: "day", digits: "4", current: "0" });
       setEditNotifChannels(cur.notifications || {
         "line-group": true, "line-personal": true, "email-approver": true,
         "email-it": true, "inapp": true, "requester-line": true,
@@ -321,10 +321,11 @@ export function Settings({ lang, t, setRoute }) {
               </div>
               <div className="ttm-numbering-options">
                 <Field label={lang === "th" ? "เริ่มนับใหม่" : "Reset counter"}>
-                  <Select value={editNumbering.reset || "year"} onChange={e => setEditNumbering({ ...editNumbering, reset: e.target.value })}>
+                  <Select value={editNumbering.reset || "day"} onChange={e => setEditNumbering({ ...editNumbering, reset: e.target.value })}>
                     <option value="never">{lang === "th" ? "ไม่รีเซ็ต" : "Never"}</option>
-                    <option value="year">{lang === "th" ? "ทุกปี" : "Yearly"}</option>
+                    <option value="day">{lang === "th" ? "ทุกวัน" : "Daily"}</option>
                     <option value="month">{lang === "th" ? "ทุกเดือน" : "Monthly"}</option>
+                    <option value="year">{lang === "th" ? "ทุกปี" : "Yearly"}</option>
                   </Select>
                 </Field>
                 <Field label={lang === "th" ? "จำนวนหลัก Running" : "Running digits"}>

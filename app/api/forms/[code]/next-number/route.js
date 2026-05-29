@@ -12,8 +12,12 @@ async function getMe() {
 
 /* Compute current period key based on reset mode */
 function periodKey(resetMode, now = new Date()) {
-  if (resetMode === "year")  return String(now.getFullYear());
-  if (resetMode === "month") return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  if (resetMode === "day")   return `${y}-${m}-${d}`;
+  if (resetMode === "year")  return String(y);
+  if (resetMode === "month") return `${y}-${m}`;
   return "never";
 }
 
@@ -44,8 +48,8 @@ export async function POST(_, { params }) {
   if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
   if (!tmpl) return NextResponse.json({ error: "Form not found" }, { status: 404 });
 
-  // Default numbering settings if missing
-  const numbering = tmpl.numbering || { reset: "year", digits: 4, current: 0, lastResetPeriod: "" };
+  // Default numbering settings if missing — reset daily so each day starts from 0001
+  const numbering = tmpl.numbering || { reset: "day", digits: 4, current: 0, lastResetPeriod: "" };
   const reset = numbering.reset || "year";
   const digits = Number(numbering.digits) || 4;
   const now = new Date();
@@ -71,6 +75,7 @@ export async function POST(_, { params }) {
   if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
 
   // Build doc number string: PREFIX-YYMMDD-NNNN
+  // e.g. FM-IT-01-01 → IT0101-260529-0001
   const yymmdd = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
   const padded = String(nextNum).padStart(digits, "0");
   const docNo = `${shortFormCode(params.code)}-${yymmdd}-${padded}`;
