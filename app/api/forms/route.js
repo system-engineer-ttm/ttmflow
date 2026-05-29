@@ -20,6 +20,7 @@ function rowToForm(r) {
     sections: r.sections ?? [],
     avgDays: Number(r.avg_days ?? 1),
     isActive: r.is_active !== false,
+    numbering: r.numbering ?? null,
   };
 }
 
@@ -59,6 +60,7 @@ export async function POST(request) {
       sections: body.sections ?? [],
       avg_days: body.avgDays ?? 1.0,
       is_active: body.isActive !== false,
+      numbering: body.numbering ?? null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await db.from("form_templates").upsert(row, { onConflict: "code" }).select().single();

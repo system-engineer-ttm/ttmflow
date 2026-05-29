@@ -20,6 +20,7 @@ function rowToForm(r) {
     sections: r.sections ?? [],
     avgDays: Number(r.avg_days ?? 1),
     isActive: r.is_active !== false,
+    numbering: r.numbering ?? null,
   };
 }
 
@@ -38,6 +39,7 @@ export async function PUT(request, { params }) {
       desc_th: body.descTh, desc_en: body.descEn,
       approvers: body.approvers, sections: body.sections,
       avg_days: body.avgDays, is_active: body.isActive !== false,
+      numbering: body.numbering ?? null,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await db.from("form_templates")
