@@ -193,7 +193,15 @@ export function Settings({ lang, t, setRoute }) {
     if (cur) {
       const normalized = (cur.approvers || []).map(a => {
         if (typeof a === "string") return { roleTh: a, roleEn: a, slaDays: 1, userId: "" };
-        return { roleTh: a.roleTh || a.roleEn || "", roleEn: a.roleEn || a.roleTh || "", slaDays: a.slaDays ?? 1, userId: a.userId || "" };
+        // Spread the original first so external-mode fields (source, nameField,
+        // titleField, expiresInDays) and any other custom fields are preserved.
+        return {
+          ...a,
+          roleTh: a.roleTh || a.roleEn || "",
+          roleEn: a.roleEn || a.roleTh || "",
+          slaDays: a.slaDays ?? 1,
+          userId: a.userId || "",
+        };
       });
       setEditApprovers(normalized);
       setEditNumbering(cur.numbering || { reset: "day", digits: "4", current: "0" });
