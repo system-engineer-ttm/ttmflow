@@ -14,6 +14,10 @@
 
 BEGIN;
 
+-- 0) ensure the numbering column exists (safe to run repeatedly)
+ALTER TABLE public.form_templates
+  ADD COLUMN IF NOT EXISTS numbering JSONB DEFAULT NULL;
+
 -- 1) transactional tables
 DELETE FROM public.signing_tokens;
 DELETE FROM public.notifications;
