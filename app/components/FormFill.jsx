@@ -5,6 +5,48 @@ import { cls, Avatar, Badge, Button, Card, Check, Field, Input, Select, Stepper,
 import { shortFormCode } from "../lib/data";
 import { useAppData } from "../lib/AppDataContext";
 
+// Walk the given sections and return labels of required fields that are empty.
+// Respects showWhen visibility — invisible fields are not required.
+function collectMissingRequired(sections, sch, lang = "th") {
+  const missing = [];
+  const visible = (f, siblings) => {
+    if (!f.showWhen || !siblings) return true;
+    const target = siblings[f.showWhen.field];
+    if (f.showWhen.equals !== undefined && target !== f.showWhen.equals) return false;
+    if (Array.isArray(f.showWhen.in)  && !f.showWhen.in.includes(target)) return false;
+    return true;
+  };
+  const isEmpty = (v) => {
+    if (v === undefined || v === null) return true;
+    if (typeof v === "string") return v.trim() === "";
+    if (Array.isArray(v)) return v.length === 0;
+    return false;
+  };
+  const walk = (fields, values) => {
+    (fields || []).forEach(f => {
+      if (!visible(f, values)) return;
+      // For a checkbox carrying subFields, the value shape is { checked, sub }.
+      if (f.type === "checkbox" && Array.isArray(f.subFields) && f.subFields.length > 0) {
+        const v = values[f.id];
+        const checked = v && typeof v === "object" ? v.checked === true : v === true;
+        if (f.required && !checked) {
+          missing.push(lang === "th" ? f.labelTh : f.labelEn);
+        }
+        if (checked) {
+          const sub = (v && typeof v === "object" ? v.sub : null) || {};
+          walk(f.subFields, sub);
+        }
+        return;
+      }
+      if (f.required && isEmpty(values[f.id])) {
+        missing.push(lang === "th" ? f.labelTh : f.labelEn);
+      }
+    });
+  };
+  (sections || []).forEach(sec => walk(sec.fields, sch));
+  return missing;
+}
+
 // Local fallback when the running-number API is unreachable
 function genDocNoFallback(code) {
   const d = new Date();
@@ -136,7 +178,18 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
           }
         }}>{t.common.saveDraft}</Button>
         {stepIdx > 0 && <Button variant="secondary" icon="arrow-left" onClick={() => setStepIdx(stepIdx - 1)}>{t.common.back}</Button>}
-        {stepIdx < 3 && <Button variant="primary" onClick={() => setStepIdx(stepIdx + 1)}>{t.common.next} <Icon name="arrow-right" size={15} /></Button>}
+        {stepIdx < 3 && <Button variant="primary" onClick={() => {
+          // Validate the current dynamic step before advancing
+          if (hasSections && (stepIdx === 0 || stepIdx === 1)) {
+            const stepSections = stepIdx === 0 ? [tmpl.sections[0]] : tmpl.sections.slice(1);
+            const missing = collectMissingRequired(stepSections, state.sch || {});
+            if (missing.length > 0) {
+              alert((lang === "th" ? "กรุณากรอกข้อมูลที่จำเป็น:\n• " : "Please fill required fields:\n• ") + missing.join("\n• "));
+              return;
+            }
+          }
+          setStepIdx(stepIdx + 1);
+        }}>{t.common.next} <Icon name="arrow-right" size={15} /></Button>}
         {stepIdx === 3 && <Button variant="primary" icon="send" disabled={submitting || !state.docNo} onClick={async () => {
           if (submitting || !state.docNo) return;
           setSubmitting(true);
@@ -557,7 +610,7 @@ function StepDynamicSchema({ lang, tmpl, sections, state, set }) {
           </div>
           <div className="ttm-form-grid">
             {(sec.fields || []).map(f => (
-              <DynField key={f.id} field={f} lang={lang} value={sch[f.id]} onChange={v => update(f.id, v)} />
+              <DynField key={f.id} field={f} lang={lang} value={sch[f.id]} siblings={sch} onChange={v => update(f.id, v)} />
             ))}
           </div>
         </Card>
@@ -566,7 +619,16 @@ function StepDynamicSchema({ lang, tmpl, sections, state, set }) {
   );
 }
 
-function DynField({ field, lang, value, onChange }) {
+function DynField({ field, lang, value, siblings, onChange }) {
+  // Conditional visibility — show only when a sibling field has a given value
+  // field.showWhen = { field: "<sibling id>", equals: "<value>" }
+  // field.showWhen = { field: "<sibling id>", in: ["a", "b"] }
+  if (field.showWhen && siblings) {
+    const target = siblings[field.showWhen.field];
+    if (field.showWhen.equals !== undefined && target !== field.showWhen.equals) return null;
+    if (Array.isArray(field.showWhen.in)  && !field.showWhen.in.includes(target)) return null;
+  }
+
   const label = lang === "th" ? field.labelTh : field.labelEn;
   const hasOptions = Array.isArray(field.options) && field.options.length > 0;
   const hasSubFields = Array.isArray(field.subFields) && field.subFields.length > 0;
@@ -640,7 +702,7 @@ function DynField({ field, lang, value, onChange }) {
             <div className="ttm-tile-body">
               <div className="ttm-form-grid">
                 {field.subFields.map(sf => (
-                  <DynField key={sf.id} field={sf} lang={lang} value={sub[sf.id]} onChange={v => updateSub(sf.id, v)} />
+                  <DynField key={sf.id} field={sf} lang={lang} value={sub[sf.id]} siblings={sub} onChange={v => updateSub(sf.id, v)} />
                 ))}
               </div>
             </div>
