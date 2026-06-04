@@ -274,16 +274,7 @@ function FormIT0101({ req, tmpl, usersMap }) {
 
             <div className="cb-line">{cb(checked("item_msoffice"))} License MS Office</div>
             <div className="cb-line">{cb(checked("item_idcard"))} บัตรพนักงาน + สายคล้อง</div>
-            <div className="cb-line">{cb(checked("item_project"))} <b>อุปกรณ์เกี่ยวกับโครงการ</b></div>
-            {checked("item_project") && (
-              <div className="indent">
-                <div className="sub-line">
-                  <span>ชื่อโครงการ</span>
-                  <DotInline value={subV("item_project", "project")} width="60%" />
-                  <span className="hint">โปรดระบุ</span>
-                </div>
-              </div>
-            )}
+            <div className="cb-line">{cb(checked("item_deskchair"))} โต๊ะ + เก้าอี้</div>
             <div className="cb-line">{cb(checked("item_other"))} อื่นๆ (ระบุ) <DotInline value={subV("item_other", "other")} width="55%" /></div>
           </div>
 

@@ -100,11 +100,7 @@ SET
         },
         {"id":"item_msoffice","type":"checkbox","labelTh":"License MS Office","labelEn":"MS Office License","span":1},
         {"id":"item_idcard","type":"checkbox","labelTh":"บัตรพนักงาน + สายคล้องคอ","labelEn":"Employee card + lanyard","span":1},
-        {"id":"item_project","type":"checkbox","labelTh":"อุปกรณ์เกี่ยวกับโครงการ","labelEn":"Project equipment","span":3,
-         "subFields":[
-           {"id":"project","type":"text","labelTh":"ชื่อโครงการ","labelEn":"Project name","span":3,"required":true}
-         ]
-        },
+        {"id":"item_deskchair","type":"checkbox","labelTh":"โต๊ะ + เก้าอี้","labelEn":"Desk + chair","span":1},
         {"id":"item_other","type":"checkbox","labelTh":"อื่นๆ (ระบุ)","labelEn":"Other (please specify)","span":3,
          "subFields":[
            {"id":"other","type":"text","labelTh":"ระบุรายละเอียด","labelEn":"Please specify","span":3,"required":true}
