@@ -438,6 +438,7 @@ function PermissionsTab({ lang, refresh }) {
   };
 
   const handleSave = async () => {
+    console.log("[Permissions] Save button clicked");
     try {
       // Ensure every (route, role) cell has an explicit boolean — the API
       // upserts whatever rows we send, so undefined values would be dropped.
@@ -448,13 +449,27 @@ function PermissionsTab({ lang, refresh }) {
           payload[r.key][role] = perms?.[r.key]?.[role] === true;
         });
       });
-      await apiFetch("/api/permissions", { method: "PUT", body: JSON.stringify(payload) });
+      console.log("[Permissions] Sending payload:", payload);
+      const res = await fetch("/api/permissions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json().catch(() => ({}));
+      console.log("[Permissions] Response status:", res.status, "body:", body);
+      if (!res.ok) {
+        const msg = body.error || `HTTP ${res.status}`;
+        const detail = body.details || body.hint || body.code || "";
+        const full = detail ? `${msg}\n\n${detail}` : msg;
+        alert((lang === "th" ? "บันทึกไม่สำเร็จ:\n" : "Save failed:\n") + full);
+        return;
+      }
       setSaved(true);
       refresh();
       setTimeout(() => setSaved(false), 2500);
     } catch (e) {
-      console.error("Permission save failed:", e);
-      alert((lang === "th" ? "บันทึกไม่สำเร็จ:\n" : "Save failed:\n") + e.message);
+      console.error("[Permissions] Save threw:", e);
+      alert((lang === "th" ? "บันทึกไม่สำเร็จ (network):\n" : "Save failed (network):\n") + e.message);
     }
   };
 
