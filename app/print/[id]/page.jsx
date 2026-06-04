@@ -128,7 +128,10 @@ function FormIT0101({ req, tmpl, usersMap }) {
   };
   const subV = (id, subId) => {
     const v = sch[id];
-    if (!v || typeof v !== "object") return null;
+    // Sub-values are only meaningful when the parent checkbox itself is ticked.
+    // Otherwise the form may carry stale sub state from before the user
+    // un-ticked it — we don't want that bleeding into the printed copy.
+    if (!v || typeof v !== "object" || v.checked !== true) return null;
     return v.sub?.[subId];
   };
 

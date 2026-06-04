@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifyToken, SESSION_COOKIE } from "@/lib/session";
 import { createServiceClient, hasSupabase } from "@/lib/supabase";
-import { REQUESTS } from "@/lib/data";
+import { REQUESTS, fmtBKK } from "@/lib/data";
 
 async function getUser() {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -19,8 +19,8 @@ function rowToReq(r) {
     steps: r.steps ?? [], payload: r.payload ?? {}, links: r.links ?? {},
     rejectReason: r.reject_reason ?? "",
     autoSpawned: r.auto_spawned === true,
-    createdAt: typeof r.created_at === "string" ? r.created_at.replace("T", " ").slice(0, 16) : r.created_at,
-    updatedAt: typeof r.updated_at === "string" ? r.updated_at.replace("T", " ").slice(0, 16) : r.updated_at,
+    createdAt: fmtBKK(r.created_at) || r.created_at,
+    updatedAt: fmtBKK(r.updated_at) || r.updated_at,
   };
 }
 
@@ -79,8 +79,8 @@ export async function POST(request) {
 
   const newReq = {
     ...body, requester: me.id,
-    createdAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-    updatedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+    createdAt: fmtBKK(),
+    updatedAt: fmtBKK(),
   };
   REQUESTS.unshift(newReq);
   return NextResponse.json(newReq);

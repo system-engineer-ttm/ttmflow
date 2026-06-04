@@ -800,3 +800,39 @@ export const FLOW_INSTANCES = [
 export function shortFormCode(code) {
   return String(code || "").replace(/^FM-/, "").replace(/-/g, "");
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Time helpers — everything in the app is displayed in
+   Asia/Bangkok (UTC+7). DB columns are TIMESTAMPTZ (UTC) but
+   user-facing strings ALWAYS go through these helpers so:
+     - timestamps generated client-side (step "at", submit time)
+     - timestamps shown from the DB
+   stay consistent regardless of where the code runs
+   (browser local TZ, Vercel UTC server, etc.).
+   ───────────────────────────────────────────────────────────── */
+const _BKK_FMT = (typeof Intl !== "undefined" && Intl.DateTimeFormat)
+  ? new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Bangkok",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    })
+  : null;
+
+/** "YYYY-MM-DD HH:MM" in Asia/Bangkok. Accepts a Date, ISO string, or
+ *  any value Date() accepts. Returns "" on bad input. */
+export function fmtBKK(d = new Date()) {
+  if (typeof d === "string") d = new Date(d);
+  if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+  if (_BKK_FMT) {
+    const parts = _BKK_FMT.formatToParts(d);
+    const get = (t) => parts.find(p => p.type === t)?.value || "";
+    return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+  }
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** "YYYY-MM-DD" in Asia/Bangkok. */
+export function todayBKK(d = new Date()) {
+  return fmtBKK(d).slice(0, 10);
+}

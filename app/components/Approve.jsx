@@ -3,6 +3,7 @@ import React from "react";
 import { Icon } from "./Icon";
 import { cls, Avatar, Badge, Button, Card, Field, IconButton, SectionTitle, StatusPill, Textarea } from "./Ui";
 import { useAppData } from "../lib/AppDataContext";
+import { fmtBKK } from "../lib/data";
 
 export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlow, currentUser }) {
   const { REQUESTS, USERS, FORM_TEMPLATES, FLOW_INSTANCES, NOTIFICATIONS, refreshRequests } = useAppData();
@@ -29,7 +30,7 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
   const submitDecision = async () => {
     if (!decision || busy) return;
     setBusy(true);
-    const now = new Date().toISOString().slice(0, 16).replace("T", " ");
+    const now = fmtBKK();
     const steps = [...(req.steps || [])];
     const idx = Math.max(0, (req.currentStep ?? 1));
     if (steps[idx]) {

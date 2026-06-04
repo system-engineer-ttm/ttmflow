@@ -2,7 +2,7 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { cls, Avatar, Badge, Button, Card, Check, Field, Input, Select, Stepper, Textarea } from "./Ui";
-import { shortFormCode } from "../lib/data";
+import { shortFormCode, fmtBKK, todayBKK } from "../lib/data";
 import { useAppData } from "../lib/AppDataContext";
 
 // Walk the given sections and return labels of required fields that are empty.
@@ -61,7 +61,7 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
   const hasSections = Array.isArray(tmpl.sections) && tmpl.sections.length > 0;
   const [submitting, setSubmitting] = React.useState(false);
   const [stepIdx, setStepIdx] = React.useState(0);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayBKK();
   const [state, setState] = React.useState(() => ({
     docNo: "",  // will be filled in by server-side running-number API on mount
     // Hardcoded path defaults (used when template has no sections)
@@ -204,7 +204,7 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
             // Resolve display values for external-signer steps from form data
             const sch = state.sch || {};
             const steps = [
-              { role: lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester", user: currentUser?.id || "REQ003", action: "submitted", at: new Date().toISOString().slice(0,16).replace("T"," "), signed: true },
+              { role: lang === "th" ? "ผู้แจ้งเรื่อง" : "Requester", user: currentUser?.id || "REQ003", action: "submitted", at: fmtBKK(), signed: true },
               ...approvers.map((a, i) => {
                 const isExternal = typeof a === "object" && a.source === "external";
                 const baseRole = typeof a === "string" ? a : (a.roleTh || a.roleEn || `Step ${i+1}`);
