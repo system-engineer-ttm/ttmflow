@@ -208,7 +208,12 @@ function FormIT0101({ req, tmpl, usersMap }) {
               <div className="indent">
                 <div className="cb-line">{cb(subV("item_email", "emailSize") === "5")} 5 GB</div>
                 <div className="cb-line">{cb(subV("item_email", "emailSize") === "10")} 10 GB</div>
-                <div className="cb-line">{cb(subV("item_email", "emailSize") === "custom")} ............ GB</div>
+                <div className="cb-line">
+                  {cb(subV("item_email", "emailSize") === "custom")}{" "}
+                  {subV("item_email", "emailSize") === "custom" && subV("item_email", "emailSizeCustom")
+                    ? <u>&nbsp;{subV("item_email", "emailSizeCustom")}&nbsp;</u>
+                    : "............"} GB
+                </div>
               </div>
               <div className="sub-line"><b>ฟีเจอร์ปฏิทิน</b> <span className="hint">(โปรดระบุ)</span></div>
               <div className="indent">
@@ -257,13 +262,15 @@ function FormIT0101({ req, tmpl, usersMap }) {
             <div className="cb-line">{cb(checked("item_headset"))} ชุดหูฟังส่วนบุคคล (Headset - Personal)</div>
 
             <div className="cb-line">{cb(checked("item_vpn"))} <b>VPN Account (สำหรับ Work from home)</b></div>
-            <div className="indent">
-              <div className="sub-line">
-                <span>สิทธิ์ในการเข้าถึงระบบ โครงการ</span>
-                <DotInline value={subV("item_project", "project") || sch.project} width="60%" />
-                <span className="hint">โปรดระบุ</span>
+            {checked("item_vpn") && (
+              <div className="indent">
+                <div className="sub-line">
+                  <span>สิทธิ์ในการเข้าถึงระบบ / โครงการ</span>
+                  <DotInline value={subV("item_vpn", "vpnAccess")} width="60%" />
+                  <span className="hint">โปรดระบุ</span>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="cb-line">{cb(checked("item_msoffice"))} License MS Office</div>
             <div className="cb-line">{cb(checked("item_idcard"))} บัตรพนักงาน + สายคล้อง</div>
