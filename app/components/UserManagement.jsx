@@ -423,7 +423,7 @@ function PermissionsTab({ lang, refresh }) {
   const [saved, setSaved] = React.useState(false);
 
   const loadPerms = React.useCallback(() => {
-    apiFetch("/api/permissions").then(setPerms).catch(() => {});
+    return apiFetch("/api/permissions").then(setPerms).catch(() => {});
   }, []);
 
   React.useEffect(() => { loadPerms(); }, [loadPerms]);
@@ -437,8 +437,11 @@ function PermissionsTab({ lang, refresh }) {
     setSaved(false);
   };
 
+  const [saving, setSaving] = React.useState(false);
+
   const handleSave = async () => {
-    console.log("[Permissions] Save button clicked");
+    if (saving) return;
+    setSaving(true);
     try {
       // Ensure every (route, role) cell has an explicit boolean — the API
       // upserts whatever rows we send, so undefined values would be dropped.
@@ -449,14 +452,12 @@ function PermissionsTab({ lang, refresh }) {
           payload[r.key][role] = perms?.[r.key]?.[role] === true;
         });
       });
-      console.log("[Permissions] Sending payload:", payload);
       const res = await fetch("/api/permissions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const body = await res.json().catch(() => ({}));
-      console.log("[Permissions] Response status:", res.status, "body:", body);
       if (!res.ok) {
         const msg = body.error || `HTTP ${res.status}`;
         const detail = body.details || body.hint || body.code || "";
@@ -464,12 +465,15 @@ function PermissionsTab({ lang, refresh }) {
         alert((lang === "th" ? "บันทึกไม่สำเร็จ:\n" : "Save failed:\n") + full);
         return;
       }
+      // Success — keep the "Saved!" badge visible for a clear 4 seconds so
+      // the user can't miss it, and reload from the DB to prove it persisted.
       setSaved(true);
-      refresh();
-      setTimeout(() => setSaved(false), 2500);
+      try { await loadPerms(); } catch (_) { /* non-fatal */ }
+      setTimeout(() => setSaved(false), 4000);
     } catch (e) {
-      console.error("[Permissions] Save threw:", e);
       alert((lang === "th" ? "บันทึกไม่สำเร็จ (network):\n" : "Save failed (network):\n") + e.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -540,11 +544,21 @@ function PermissionsTab({ lang, refresh }) {
         <button className="ttm-btn ttm-btn-ghost" onClick={handleReset}>
           {th ? "รีเซ็ต" : "Reset"}
         </button>
-        <button className="ttm-btn ttm-btn-primary" onClick={handleSave}
-          style={{ display:"flex", alignItems:"center", gap:6 }}>
-          {saved
-            ? <><Icon name="check" size={15} />{th ? "บันทึกแล้ว!" : "Saved!"}</>
-            : <>{th ? "บันทึกการตั้งค่า" : "Save permissions"}</>
+        <button
+          className="ttm-btn ttm-btn-primary"
+          onClick={handleSave}
+          disabled={saving}
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            background: saved ? "#10b981" : undefined,  // green flash when saved
+            transition: "background 0.2s",
+          }}
+        >
+          {saving
+            ? <>{th ? "กำลังบันทึก..." : "Saving..."}</>
+            : saved
+              ? <><Icon name="check" size={15} stroke={2.5} />{th ? "บันทึกสำเร็จ!" : "Saved!"}</>
+              : <>{th ? "บันทึกการตั้งค่า" : "Save permissions"}</>
           }
         </button>
       </div>
