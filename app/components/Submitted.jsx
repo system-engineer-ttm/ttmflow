@@ -1,8 +1,14 @@
 "use client";
 import { Icon } from "./Icon";
 import { cls, Button, Card, SectionTitle } from "./Ui";
+import { useAppData } from "../lib/AppDataContext";
 
 export function Submitted({ lang, t, docNo, back }) {
+  const { REQUESTS, USERS } = useAppData();
+  const req = REQUESTS.find(r => r.id === docNo);
+  // steps[0] is the requester (auto-signed). The "what happens next" list
+  // covers steps[1+].
+  const pendingSteps = (req?.steps || []).slice(1);
   const openPreview = () => {
     if (!docNo) return;
     window.open(`/print/${encodeURIComponent(docNo)}`, "_blank", "noopener,noreferrer");
@@ -41,29 +47,59 @@ export function Submitted({ lang, t, docNo, back }) {
 
       <Card className="ttm-submitted-next">
         <SectionTitle title={lang === "th" ? "ขั้นถัดไป" : "What happens next"} />
-        <ol className="ttm-next-list">
-          <li>
-            <div className="ttm-next-num">1</div>
-            <div>
-              <strong>{lang === "th" ? "ธนวัฒน์ ศรีสุวรรณ (Operations Manager)" : "Tanawat Srisuwan (Operations Manager)"}</strong>
-              <p>{lang === "th" ? "ได้รับ Email + LINE พร้อมลิงก์ Approve — SLA 1 วันทำการ" : "Received email + LINE with an Approve link — SLA 1 business day."}</p>
-            </div>
-          </li>
-          <li>
-            <div className="ttm-next-num">2</div>
-            <div>
-              <strong>{lang === "th" ? "ชนิกานต์ พรหมศรี (IT Manager)" : "Chanikan Phromsri (IT Manager)"}</strong>
-              <p>{lang === "th" ? "จะได้รับการแจ้งเตือนทันทีหลังขั้นที่ 1 อนุมัติเรียบร้อย" : "Notified immediately after step 1 is approved."}</p>
-            </div>
-          </li>
-          <li>
-            <div className="ttm-next-num">3</div>
-            <div>
-              <strong>{lang === "th" ? "ทีม IT รับงานเข้าคิว" : "IT team picks up the work"}</strong>
-              <p>{lang === "th" ? "ระบบสร้าง Ticket No. ให้อัตโนมัติ — ติดตามสถานะใน คิวงาน IT" : "A Ticket number is auto-issued — track in the IT Work Queue."}</p>
-            </div>
-          </li>
-        </ol>
+        {pendingSteps.length === 0 ? (
+          <p className="ttm-muted ttm-small ttm-pad">
+            {lang === "th" ? "ไม่มีขั้นอนุมัติเพิ่มเติม" : "No further approval steps."}
+          </p>
+        ) : (
+          <ol className="ttm-next-list">
+            {pendingSteps.map((s, idx) => {
+              // Resolve display name for this step
+              let displayName = "";
+              let roleLabel = s.role || "";
+              if (s.source === "external") {
+                displayName = s.displayName || (lang === "th" ? "ผู้รับมอบ" : "Receiver");
+                if (s.displayTitle) roleLabel = `${roleLabel} · ${s.displayTitle}`;
+              } else if (s.user && USERS[s.user]) {
+                const u = USERS[s.user];
+                displayName = lang === "th" ? (u.nameTh || u.username) : (u.nameEn || u.nameTh || u.username);
+                if (u.titleTh || u.titleEn) {
+                  roleLabel = `${roleLabel} · ${lang === "th" ? (u.titleTh || u.titleEn) : (u.titleEn || u.titleTh)}`;
+                }
+              } else {
+                displayName = roleLabel || (lang === "th" ? "ผู้อนุมัติ" : "Approver");
+                roleLabel = "";
+              }
+
+              // Message: first pending = active, the rest = queued
+              let msg;
+              if (s.source === "external") {
+                msg = lang === "th"
+                  ? "รอผู้อนุมัติคนสุดท้ายสร้างลิงก์เซ็นเอกสารและส่งให้ผู้รับมอบเองผ่านช่องทางที่สะดวก"
+                  : "Waits for the last in-app approver to generate a sign link and forward it to the receiver.";
+              } else if (idx === 0) {
+                const sla = s.slaDays ?? 1;
+                msg = lang === "th"
+                  ? `ได้รับ Email + LINE พร้อมลิงก์ Approve — SLA ${sla} วันทำการ`
+                  : `Receives email + LINE with an Approve link — SLA ${sla} business day(s).`;
+              } else {
+                msg = lang === "th"
+                  ? `จะได้รับการแจ้งเตือนหลังขั้นที่ ${idx} อนุมัติเรียบร้อย`
+                  : `Notified after step ${idx} is approved.`;
+              }
+
+              return (
+                <li key={idx}>
+                  <div className="ttm-next-num">{idx + 1}</div>
+                  <div>
+                    <strong>{displayName}{roleLabel ? ` (${roleLabel})` : ""}</strong>
+                    <p>{msg}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
       </Card>
     </div>
   );
