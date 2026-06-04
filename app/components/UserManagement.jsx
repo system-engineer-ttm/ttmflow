@@ -429,17 +429,33 @@ function PermissionsTab({ lang, refresh }) {
   React.useEffect(() => { loadPerms(); }, [loadPerms]);
 
   const toggle = (route, role) => {
-    setPerms((p) => p ? { ...p, [route]: { ...p[route], [role]: !p[route][role] } } : p);
+    setPerms((p) => {
+      if (!p) return p;
+      const routeRow = p[route] || {};            // ← guard: row may not exist yet
+      return { ...p, [route]: { ...routeRow, [role]: !routeRow[role] } };
+    });
     setSaved(false);
   };
 
   const handleSave = async () => {
     try {
-      await apiFetch("/api/permissions", { method: "PUT", body: JSON.stringify(perms) });
+      // Ensure every (route, role) cell has an explicit boolean — the API
+      // upserts whatever rows we send, so undefined values would be dropped.
+      const payload = {};
+      PERM_ROWS.forEach(r => {
+        payload[r.key] = {};
+        ROLES.forEach(role => {
+          payload[r.key][role] = perms?.[r.key]?.[role] === true;
+        });
+      });
+      await apiFetch("/api/permissions", { method: "PUT", body: JSON.stringify(payload) });
       setSaved(true);
       refresh();
       setTimeout(() => setSaved(false), 2500);
-    } catch (e) { alert(e.message); }
+    } catch (e) {
+      console.error("Permission save failed:", e);
+      alert((lang === "th" ? "บันทึกไม่สำเร็จ:\n" : "Save failed:\n") + e.message);
+    }
   };
 
   const handleReset = () => { loadPerms(); setSaved(false); };
