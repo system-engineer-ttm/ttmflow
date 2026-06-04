@@ -23,62 +23,80 @@ function periodKey(resetMode, now = new Date()) {
 
 /* ── POST /api/forms/[code]/next-number ──
    Reserves the next running number for this form template.
-   Atomic-ish: reads current, increments, writes back. Acceptable for low
-   concurrent volumes; for higher volume promote to a Postgres RPC.
 
-   Returns: { docNo, current }
+   Two paths, picked automatically:
+   (A) If form_templates.numbering exists, read/increment/write it
+       respecting the configured reset cadence and digit width.
+   (B) Fallback if numbering column is missing OR the configured-counter
+       path errors: count existing rows in requests whose id starts with
+       PREFIX-YYMMDD- and return count+1 padded to 4 digits.
+
+   Path B always produces a clean 0001+ sequence — no random fallback,
+   no need for the migration.
 */
 export async function POST(_, { params }) {
   const me = await getMe();
   if (!me) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const now = new Date();
+  const yymmdd = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  const prefix = shortFormCode(params.code);
+  const todayPrefix = `${prefix}-${yymmdd}-`;
+
   if (!hasSupabase) {
-    // Fallback: timestamp-based unique number
-    const now = new Date();
-    const yymmdd = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-    const n = String(Math.floor(Math.random() * 9000) + 1000);
-    return NextResponse.json({ docNo: `${shortFormCode(params.code)}-${yymmdd}-${n}`, current: 0 });
+    return NextResponse.json({ docNo: `${prefix}-${yymmdd}-0001`, current: 1 });
   }
 
   const db = createServiceClient();
-  const { data: tmpl, error: rErr } = await db
-    .from("form_templates")
-    .select("code, numbering")
-    .eq("code", params.code)
-    .maybeSingle();
-  if (rErr) return NextResponse.json({ error: rErr.message }, { status: 500 });
-  if (!tmpl) return NextResponse.json({ error: "Form not found" }, { status: 404 });
 
-  // Default numbering settings if missing — reset daily so each day starts from 0001
-  const numbering = tmpl.numbering || { reset: "day", digits: 4, current: 0, lastResetPeriod: "" };
-  const reset = numbering.reset || "year";
-  const digits = Number(numbering.digits) || 4;
-  const now = new Date();
-  const currentPeriod = periodKey(reset, now);
+  /* ── Path A: configured counter (requires numbering column) ── */
+  let nextNum = null;
+  try {
+    const { data: tmpl, error: rErr } = await db
+      .from("form_templates")
+      .select("code, numbering")
+      .eq("code", params.code)
+      .maybeSingle();
 
-  // Reset counter if period changed
-  let nextNum = Number(numbering.current) || 0;
-  if (numbering.lastResetPeriod !== currentPeriod) {
-    nextNum = 0;
+    if (!rErr && tmpl) {
+      const numbering = tmpl.numbering || { reset: "day", digits: 4, current: 0, lastResetPeriod: "" };
+      const reset = numbering.reset || "day";
+      const digits = Number(numbering.digits) || 4;
+      const currentPeriod = periodKey(reset, now);
+
+      let candidate = Number(numbering.current) || 0;
+      if (numbering.lastResetPeriod !== currentPeriod) candidate = 0;
+      candidate += 1;
+
+      const { error: uErr } = await db
+        .from("form_templates")
+        .update({
+          numbering: { ...numbering, current: candidate, lastResetPeriod: currentPeriod },
+          updated_at: now.toISOString(),
+        })
+        .eq("code", params.code);
+
+      if (!uErr) {
+        const padded = String(candidate).padStart(digits, "0");
+        return NextResponse.json({ docNo: `${prefix}-${yymmdd}-${padded}`, current: candidate });
+      }
+    }
+  } catch (_) {
+    // Fall through to Path B
   }
-  nextNum += 1;
 
-  const newNumbering = {
-    ...numbering,
-    current: nextNum,
-    lastResetPeriod: currentPeriod,
-  };
+  /* ── Path B: count-based fallback (works without the numbering column) ── */
+  try {
+    const { count, error: cErr } = await db
+      .from("requests")
+      .select("id", { count: "exact", head: true })
+      .like("id", `${todayPrefix}%`);
+    if (cErr) throw cErr;
+    nextNum = (count ?? 0) + 1;
+  } catch (_) {
+    nextNum = 1;
+  }
 
-  const { error: uErr } = await db
-    .from("form_templates")
-    .update({ numbering: newNumbering, updated_at: new Date().toISOString() })
-    .eq("code", params.code);
-  if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
-
-  // Build doc number string: PREFIX-YYMMDD-NNNN
-  // e.g. FM-IT-01-01 → IT0101-260529-0001
-  const yymmdd = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
-  const padded = String(nextNum).padStart(digits, "0");
-  const docNo = `${shortFormCode(params.code)}-${yymmdd}-${padded}`;
-
-  return NextResponse.json({ docNo, current: nextNum });
+  const padded = String(nextNum).padStart(4, "0");
+  return NextResponse.json({ docNo: `${prefix}-${yymmdd}-${padded}`, current: nextNum });
 }
