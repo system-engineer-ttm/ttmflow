@@ -4,13 +4,12 @@ import { cls, Button, Card, SectionTitle, Spark, StatusPill } from "./Ui";
 import { useAppData } from "../lib/AppDataContext";
 
 export function Dashboard({ lang, role, t, setRoute, openRequest, currentUser: loggedInUser }) {
-  const { REQUESTS: reqs, USERS: users, FORM_TEMPLATES: tmpl } = useAppData();
+  const { REQUESTS: reqs, USERS: users, FORM_TEMPLATES: tmpl, NOTIFICATIONS: notifs } = useAppData();
 
-  // Prefer the actual logged-in user; fall back to role-based mock for admin "View as"
-  const currentUser = loggedInUser || ({
-    requester: users.REQ003, approver: users.APP001, it: users.IT001,
-    admin: users.ADM001, auditor: users.AUD001,
-  }[role]) || Object.values(users)[0] || { nameTh: "User", nameEn: "User" };
+  // Logged-in user (Login gates the app, so this should always be set).
+  // Fall back to a generic placeholder only so the JSX never NPEs during
+  // brief mount/unmount windows.
+  const currentUser = loggedInUser || { nameTh: "User", nameEn: "User" };
 
   const myId = currentUser?.id;
   const now = new Date();
@@ -81,7 +80,7 @@ export function Dashboard({ lang, role, t, setRoute, openRequest, currentUser: l
       <div className="ttm-hello">
         <div>
           <h2>
-            {t.dash.hello}, {lang === "th" ? currentUser.nameTh.split(" ")[0] : currentUser.nameEn.split(" ")[0]} 👋
+            {t.dash.hello}, {(lang === "th" ? (currentUser.nameTh || currentUser.nameEn || "") : (currentUser.nameEn || currentUser.nameTh || "")).split(" ")[0]} 👋
           </h2>
           <p>{t.dash.welcome}</p>
         </div>
@@ -113,6 +112,11 @@ export function Dashboard({ lang, role, t, setRoute, openRequest, currentUser: l
             right={<button className="ttm-link" onClick={() => setRoute("archive")}>{t.dash.seeAll}</button>}
           />
           <div className="ttm-recent-list">
+            {reqs.length === 0 && (
+              <div className="ttm-empty" style={{ padding: "1.5rem", textAlign: "center", color: "var(--muted)", fontSize: "0.85rem" }}>
+                {lang === "th" ? "ยังไม่มีคำขอในระบบ" : "No requests yet"}
+              </div>
+            )}
             {reqs.slice(0, 6).map(r => {
               const u = users[r.requester] || { nameTh: r.requester, nameEn: r.requester };
               const tmplObj = tmpl.find(x => x.code === r.template) || { icon: "file-text", color: "blue" };
@@ -144,6 +148,11 @@ export function Dashboard({ lang, role, t, setRoute, openRequest, currentUser: l
         <Card className="ttm-quick">
           <SectionTitle title={t.dash.quickStart} sub={lang === "th" ? "แบบฟอร์มที่ใช้บ่อย" : "Frequently used forms"} />
           <div className="ttm-quick-grid">
+            {tmpl.length === 0 && (
+              <div className="ttm-empty" style={{ padding: "1.5rem", textAlign: "center", color: "var(--muted)", fontSize: "0.85rem", gridColumn: "1 / -1" }}>
+                {lang === "th" ? "ยังไม่มีแบบฟอร์มในระบบ" : "No form templates yet"}
+              </div>
+            )}
             {tmpl.slice(0, 4).map(f => (
               <button key={f.code} className={cls("ttm-quick-card", `is-${f.color}`)} onClick={() => setRoute("new")}>
                 <div className="ttm-quick-icon"><Icon name={f.icon} size={18} /></div>
@@ -159,52 +168,47 @@ export function Dashboard({ lang, role, t, setRoute, openRequest, currentUser: l
 
         <Card className="ttm-volume">
           <SectionTitle title={t.dash.byType} />
-          <VolumeChart lang={lang} />
+          <VolumeChart lang={lang} reqs={reqs} tmpl={tmpl} />
         </Card>
 
         <Card className="ttm-channels">
           <SectionTitle
             title={lang === "th" ? "การแจ้งเตือนสำเร็จ (7 วัน)" : "Notification delivery (7 days)"}
-            sub={lang === "th" ? "อัตราส่ง Line / Email / In-app" : "Line / Email / In-app rate"}
+            sub={lang === "th" ? "อัตราส่ง LINE / Email / In-app" : "LINE / Email / In-app rate"}
           />
-          <ul className="ttm-channels-list">
-            {[
-              { name: "LINE Notify", icon: "line", value: 312, rate: "99.7%", color: "green" },
-              { name: "Email (SMTP relay)", icon: "mail", value: 268, rate: "100%", color: "blue" },
-              { name: "In-app bell", icon: "bell", value: 124, rate: "100%", color: "violet" },
-            ].map(ch => (
-              <li key={ch.name} className="ttm-channel-row">
-                <div className={cls("ttm-channel-icon", `is-${ch.color}`)}>
-                  <Icon name={ch.icon} size={16} />
-                </div>
-                <div className="ttm-channel-meta">
-                  <div className="ttm-channel-name">{ch.name}</div>
-                  <div className="ttm-channel-sub">{ch.value} {lang === "th" ? "ครั้ง" : "events"} · {ch.rate}</div>
-                </div>
-                <div className="ttm-channel-bar">
-                  <span style={{ width: ch.rate }} />
-                </div>
-              </li>
-            ))}
-          </ul>
+          <ChannelStats lang={lang} notifs={notifs} />
         </Card>
       </div>
     </div>
   );
 }
 
-function VolumeChart({ lang }) {
-  const data = [
-    { code: "FM-IT-01-01", label: lang === "th" ? "ขอใช้ระบบ/อุปกรณ์" : "System/Equipment", count: 38, color: "blue" },
-    { code: "FM-IT-01-11", label: lang === "th" ? "แจ้งซ่อม IT" : "IT Support", count: 27, color: "rose" },
-    { code: "FM-IT-01-10", label: lang === "th" ? "ติดตั้งอุปกรณ์" : "Install Equipment", count: 11, color: "amber" },
-    { code: "FM-HR-02-01", label: lang === "th" ? "ขอกำลังพล" : "Headcount Request", count: 8, color: "teal" },
-    { code: "FM-IT-01-09", label: lang === "th" ? "จัดการคิว PBX" : "PBX Queues", count: 6, color: "violet" },
-    { code: "FM-HR-02-03", label: lang === "th" ? "เปิดข้อมูลพนักงานใหม่" : "Onboarding (HR)", count: 4, color: "teal" },
-    { code: "FM-SL-04-01", label: lang === "th" ? "เปิดโครงการใหม่ (Sales)" : "Project kickoff (Sales)", count: 3, color: "blue" },
-    { code: "FM-FI-03-02", label: lang === "th" ? "ขอเบิกค่าใช้จ่าย" : "Expense (FI)", count: 3, color: "emerald" },
-  ];
-  const max = Math.max(...data.map(d => d.count));
+function VolumeChart({ lang, reqs, tmpl }) {
+  // Count actual requests per template code
+  const counts = new Map();
+  (reqs || []).forEach(r => {
+    counts.set(r.template, (counts.get(r.template) || 0) + 1);
+  });
+
+  // Build display rows from registered templates so the chart matches the
+  // forms that actually exist. Templates with 0 submissions still appear so
+  // admins can see them at a glance.
+  const data = (tmpl || []).map(f => ({
+    code: f.code,
+    label: lang === "th" ? f.titleTh : f.titleEn,
+    count: counts.get(f.code) || 0,
+    color: f.color || "blue",
+  })).sort((a, b) => b.count - a.count);
+
+  if (data.length === 0) {
+    return (
+      <div className="ttm-empty" style={{ padding: "1.5rem", textAlign: "center", color: "var(--muted)", fontSize: "0.85rem" }}>
+        {lang === "th" ? "ยังไม่มีแบบฟอร์มในระบบ" : "No form templates yet"}
+      </div>
+    );
+  }
+
+  const max = Math.max(1, ...data.map(d => d.count));
   return (
     <div className="ttm-volume-rows">
       {data.map(d => (
@@ -220,5 +224,60 @@ function VolumeChart({ lang }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function ChannelStats({ lang, notifs }) {
+  // 7-day window in Asia/Bangkok local time
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const parseAt = (s) => {
+    if (!s) return 0;
+    try { return new Date(String(s).replace(" ", "T")).getTime(); } catch { return 0; }
+  };
+  const recent = (notifs || []).filter(n => parseAt(n.at) >= cutoff);
+
+  const def = [
+    { id: "line",  name: "LINE Notify",        icon: "line", color: "green"  },
+    { id: "email", name: "Email (SMTP relay)", icon: "mail", color: "blue"   },
+    { id: "inapp", name: "In-app bell",        icon: "bell", color: "violet" },
+  ];
+
+  const rows = def.map(d => {
+    const sent = recent.filter(n => n.channel === d.id);
+    const total = sent.length;
+    const ok = sent.filter(n => {
+      const s = String(n.status || "").toLowerCase();
+      return s === "sent" || s === "delivered" || s === "success" || s === "ok";
+    }).length;
+    const rate = total > 0 ? Math.round((ok / total) * 100) : 0;
+    return { ...d, value: total, rate: total > 0 ? `${rate}%` : "—" };
+  });
+
+  const anyData = rows.some(r => r.value > 0);
+  if (!anyData) {
+    return (
+      <div className="ttm-empty" style={{ padding: "1.5rem", textAlign: "center", color: "var(--muted)", fontSize: "0.85rem" }}>
+        {lang === "th" ? "ยังไม่มีการแจ้งเตือนใน 7 วันที่ผ่านมา" : "No notifications in the last 7 days"}
+      </div>
+    );
+  }
+
+  return (
+    <ul className="ttm-channels-list">
+      {rows.map(ch => (
+        <li key={ch.id} className="ttm-channel-row">
+          <div className={cls("ttm-channel-icon", `is-${ch.color}`)}>
+            <Icon name={ch.icon} size={16} />
+          </div>
+          <div className="ttm-channel-meta">
+            <div className="ttm-channel-name">{ch.name}</div>
+            <div className="ttm-channel-sub">{ch.value} {lang === "th" ? "ครั้ง" : "events"} · {ch.rate}</div>
+          </div>
+          <div className="ttm-channel-bar">
+            <span style={{ width: ch.rate === "—" ? "0%" : ch.rate }} />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
