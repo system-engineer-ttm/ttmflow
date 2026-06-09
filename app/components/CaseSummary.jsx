@@ -42,12 +42,6 @@ export function CaseSummary({ lang }) {
   }
 
   /* ── Split & summarise ── */
-  // Internal customer = "Inbound" regardless of decoration around it, e.g.
-  // "Inbound", "- : Inbound", "Inbound:" all count. We strip every
-  // non-alphanumeric character and compare, so "Inbound-24x7" (which becomes
-  // "inbound24x7") stays a Customer Support client.
-  const isInbound = (r) =>
-    String(r.Customer || "").replace(/[^a-z0-9]/gi, "").toLowerCase() === "inbound";
   const customerRows = rows.filter(r => !isInbound(r));
   const internalRows = rows.filter(r => isInbound(r));
   const dateRange = detectDateRange(rows);
@@ -154,7 +148,7 @@ function SectionRequestByCategory({ title, data, dateRange }) {
   // Group by customer → sub category
   const byCustomer = new Map();
   data.forEach(r => {
-    const cust = (r.Customer || "—").trim();
+    const cust = canonicalCustomer(r.Customer);
     const sub  = (r["Sub Category"] || r.Category || "—").trim() || "—";
     if (!byCustomer.has(cust)) byCustomer.set(cust, new Map());
     const cats = byCustomer.get(cust);
@@ -238,7 +232,7 @@ function SectionIncidentExamples({ title, data, dateRange }) {
           {examples.map((r, i) => (
             <tr key={r["Ticket No."] || i}>
               <td className="cs-num">{i + 1}.</td>
-              <td className="cs-cust">{r.Customer}</td>
+              <td className="cs-cust">{canonicalCustomer(r.Customer)}</td>
               <td>
                 <span className="cs-bullet">×</span>{" "}
                 {r.Problem || r.Subject || "—"}
@@ -276,7 +270,7 @@ function OverviewChart({ data }) {
   // Build per-customer × type counts
   const customers = new Map();   // cust → { Incident, Request, Inquiry, total }
   data.forEach(r => {
-    const cust = (r.Customer || "—").trim() || "—";
+    const cust = canonicalCustomer(r.Customer);
     const type = (r.Type || "").trim();
     if (!customers.has(cust)) customers.set(cust, { Incident: 0, Request: 0, Inquiry: 0, total: 0 });
     const m = customers.get(cust);
@@ -463,6 +457,23 @@ function Pie({ incident, request }) {
    ───────────────────────────────────────────────────────────── */
 function isRequest(r)  { return (r.Type || "").trim() === "Request"; }
 function isIncident(r) { return (r.Type || "").trim() === "Incident"; }
+
+// Internal customer = "Inbound" regardless of decoration around it, e.g.
+// "Inbound", "- : Inbound", "Inbound:" all count. We strip every
+// non-alphanumeric character and compare, so "Inbound-24x7" (which becomes
+// "inbound24x7") stays a Customer Support client.
+function isInbound(r) {
+  return String(r.Customer || "").replace(/[^a-z0-9]/gi, "").toLowerCase() === "inbound";
+}
+
+// Canonical customer name used for grouping/counting so different
+// decorations of the same customer collapse into one. All "Inbound"
+// variants become a single "Inbound" customer.
+function canonicalCustomer(name) {
+  const raw = String(name || "").trim();
+  if (raw.replace(/[^a-z0-9]/gi, "").toLowerCase() === "inbound") return "Inbound";
+  return raw || "—";
+}
 
 function fmtDate(s) {
   if (!s) return "—";
