@@ -42,7 +42,12 @@ export function CaseSummary({ lang }) {
   }
 
   /* ── Split & summarise ── */
-  const isInbound = (r) => String(r.Customer || "").trim().toLowerCase() === "inbound";
+  // Internal customer = "Inbound" regardless of decoration around it, e.g.
+  // "Inbound", "- : Inbound", "Inbound:" all count. We strip every
+  // non-alphanumeric character and compare, so "Inbound-24x7" (which becomes
+  // "inbound24x7") stays a Customer Support client.
+  const isInbound = (r) =>
+    String(r.Customer || "").replace(/[^a-z0-9]/gi, "").toLowerCase() === "inbound";
   const customerRows = rows.filter(r => !isInbound(r));
   const internalRows = rows.filter(r => isInbound(r));
   const dateRange = detectDateRange(rows);
