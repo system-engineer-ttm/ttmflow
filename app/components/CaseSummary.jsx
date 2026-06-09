@@ -41,24 +41,23 @@ export function CaseSummary({ lang }) {
     return <UploadStep th={th} onFile={handleFile} error={error} />;
   }
 
-  /* ── Split & summarise ── */
-  const customerRows = rows.filter(r => !isInbound(r));
-  const internalRows = rows.filter(r => isInbound(r));
   const dateRange = detectDateRange(rows);
 
-  const hasSolve = (r) => String(r.Solotion || "").trim() !== "";
-  // Per-section data slices (a section renders only when its slice is non-empty)
-  const custReq = customerRows.filter(isRequest);
-  const custInc = customerRows.filter(r => isIncident(r) && hasSolve(r));
-  const intReq  = internalRows.filter(isRequest);
-  const intInc  = internalRows.filter(r => isIncident(r) && hasSolve(r));
+  // Open the standalone PDF document in a new tab (same pattern as FM-IT-01-01:
+  // we stash the parsed rows in sessionStorage and the /print page reads them).
+  const exportPdf = () => {
+    try {
+      sessionStorage.setItem("ttm.serviceTicket", JSON.stringify({ rows, fileName, dateRange }));
+    } catch (_) { /* ignore quota errors — open anyway */ }
+    window.open("/print/service-ticket", "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="ttm-page cs-page">
-      <PrintStyles />
+      <ServiceTicketReportStyles />
 
-      {/* ── Top toolbar (hidden on print) ── */}
-      <div className="cs-toolbar no-print">
+      {/* ── Top toolbar ── */}
+      <div className="cs-toolbar">
         <div>
           <h2 style={{ margin: 0 }}>Service Ticket Summary</h2>
           <div className="ttm-muted ttm-small" style={{ marginTop: 4 }}>
@@ -71,43 +70,59 @@ export function CaseSummary({ lang }) {
           <Button variant="secondary" icon="external" onClick={() => setRows(null)}>
             {th ? "อัปโหลดใหม่" : "Upload new"}
           </Button>
-          <Button variant="primary" icon="download" onClick={() => window.print()}>
-            {th ? "พิมพ์ / บันทึก PDF" : "Print / Save PDF"}
+          <Button variant="primary" icon="download" onClick={exportPdf}>
+            {th ? "Export เป็น PDF" : "Export as PDF"}
           </Button>
         </div>
       </div>
 
-      {/* Each section becomes its own PDF page (page-break-after in print CSS).
-          A section renders only when it has data → empty pages are skipped.
-          Order: Cust Request → Cust Incident → Cust overview →
-                 Int Request → Int Incident → Int overview */}
+      <ServiceTicketReport rows={rows} />
+    </div>
+  );
+}
 
-      {/* Page 1 — Customer Support · Request */}
+/* ─────────────────────────────────────────────────────────────
+   ServiceTicketReport — the 6 ordered, data-only sections.
+   Shared by the in-app view and the standalone /print page.
+     1 Customer Support - Request
+     2 Customer Support - Incident
+     3 Customer Support (overview)
+     4 Internal Support - Request
+     5 Internal Support - Incident
+     6 Internal Support (overview)
+   ───────────────────────────────────────────────────────────── */
+export function ServiceTicketReport({ rows }) {
+  const customerRows = rows.filter(r => !isInbound(r));
+  const internalRows = rows.filter(r => isInbound(r));
+  const dateRange = detectDateRange(rows);
+  const hasSolve = (r) => String(r.Solotion || "").trim() !== "";
+
+  const custReq = customerRows.filter(isRequest);
+  const custInc = customerRows.filter(r => isIncident(r) && hasSolve(r));
+  const intReq  = internalRows.filter(isRequest);
+  const intInc  = internalRows.filter(r => isIncident(r) && hasSolve(r));
+
+  return (
+    <>
       {custReq.length > 0 && (
         <SectionRequestByCategory title="Customer Support - Request" data={custReq} dateRange={dateRange} />
       )}
-      {/* Page 2 — Customer Support · Incident */}
       {custInc.length > 0 && (
         <SectionIncidentExamples title="Customer Support - Incident" data={customerRows.filter(isIncident)} dateRange={dateRange} />
       )}
-      {/* Page 3 — Customer Support · overview */}
       {customerRows.length > 0 && (
         <SectionCustomerOverview title="Customer Support" data={customerRows} dateRange={dateRange} />
       )}
-
-      {/* Page 4 — Internal Support · Request */}
       {intReq.length > 0 && (
         <SectionRequestByCategory title="Internal Support - Request" data={intReq} dateRange={dateRange} />
       )}
-      {/* Page 5 — Internal Support · Incident */}
       {intInc.length > 0 && (
         <SectionIncidentExamples title="Internal Support - Incident" data={internalRows.filter(isIncident)} dateRange={dateRange} />
       )}
-      {/* Page 6 — Internal Support · overview */}
       {internalRows.length > 0 && (
         <SectionInternalOverview title="Internal Support" data={internalRows} dateRange={dateRange} />
       )}
-    </div>
+    </>
   );
 }
 
@@ -583,7 +598,7 @@ function parseCsv(text) {
    Styles — scoped to .cs-* class names. Includes a print
    variant so "Print / Save PDF" produces a clean handout.
    ───────────────────────────────────────────────────────────── */
-function PrintStyles() {
+export function ServiceTicketReportStyles() {
   return (
     <style>{`
       .cs-page { padding: 1.5rem 2rem; max-width: 1100px; margin: 0 auto; }

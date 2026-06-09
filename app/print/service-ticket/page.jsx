@@ -1,0 +1,127 @@
+"use client";
+import React from "react";
+import { ServiceTicketReport, ServiceTicketReportStyles } from "../../components/CaseSummary";
+
+/* Standalone PDF document for the Service Ticket Summary — same pattern as
+   /print/[id] (FM-IT-01-01): a toolbar with Print / Close, and the report
+   laid out as A4 pages. Data is handed over via sessionStorage by the
+   "Export as PDF" button on the Service Ticket Summary page. */
+export default function ServiceTicketPrintPage() {
+  const [state, setState] = React.useState({ loading: true });
+
+  React.useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("ttm.serviceTicket");
+      if (!raw) { setState({ loading: false, rows: null }); return; }
+      const data = JSON.parse(raw);
+      setState({ loading: false, rows: data.rows || [], fileName: data.fileName || "", dateRange: data.dateRange || "" });
+    } catch (e) {
+      setState({ loading: false, rows: null, error: e.message });
+    }
+  }, []);
+
+  if (state.loading) {
+    return <div style={{ padding: 40, fontFamily: "Sarabun, sans-serif" }}>กำลังโหลด…</div>;
+  }
+
+  if (!state.rows || state.rows.length === 0) {
+    return (
+      <div style={{ padding: 40, fontFamily: "Sarabun, sans-serif", textAlign: "center" }}>
+        <h2>ไม่พบข้อมูลรายงาน</h2>
+        <p style={{ color: "#64748b" }}>
+          กรุณาเปิดหน้านี้ผ่านปุ่ม “Export เป็น PDF” ในเมนู Service Ticket Summary อีกครั้ง
+        </p>
+        <button onClick={() => window.close()} style={btnStyle}>ปิดหน้านี้</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stp-doc">
+      <ServiceTicketReportStyles />
+      <PrintPageStyles />
+
+      {/* Toolbar — hidden on print */}
+      <div className="no-print stp-toolbar">
+        <button className="stp-btn stp-btn-primary" onClick={() => window.print()}>
+          🖨️ พิมพ์ / บันทึกเป็น PDF
+        </button>
+        <button className="stp-btn" onClick={() => window.close()}>ปิดหน้านี้</button>
+        <span className="stp-meta">
+          {state.fileName ? <>ไฟล์: <b>{state.fileName}</b> · </> : null}
+          {state.dateRange ? <>ข้อมูลตั้งแต่ <b>{state.dateRange}</b></> : null}
+        </span>
+      </div>
+
+      {/* The report — each .cs-section becomes an A4 page */}
+      <div className="stp-paper">
+        <ServiceTicketReport rows={state.rows} />
+      </div>
+    </div>
+  );
+}
+
+const btnStyle = {
+  marginTop: 16, padding: "8px 18px", borderRadius: 8, border: "1px solid #cbd5e1",
+  background: "#fff", cursor: "pointer", fontFamily: "inherit",
+};
+
+function PrintPageStyles() {
+  return (
+    <style>{`
+      .stp-doc {
+        background: #e9edf3;
+        min-height: 100vh;
+        font-family: "Sarabun", -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+      .stp-toolbar {
+        position: sticky; top: 0; z-index: 10;
+        display: flex; align-items: center; gap: 10px;
+        background: #1f6feb; color: white;
+        padding: 12px 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      }
+      .stp-btn {
+        border: none; border-radius: 8px; cursor: pointer;
+        padding: 8px 16px; font-size: 14px; font-weight: 600;
+        font-family: inherit; background: rgba(255,255,255,0.18); color: white;
+      }
+      .stp-btn:hover { background: rgba(255,255,255,0.28); }
+      .stp-btn-primary { background: white; color: #1f6feb; }
+      .stp-btn-primary:hover { background: #f1f5f9; }
+      .stp-meta { margin-left: auto; font-size: 12.5px; opacity: 0.95; }
+
+      /* Each report section rendered as an A4 landscape sheet */
+      .stp-paper {
+        padding: 24px 0;
+        display: flex; flex-direction: column; align-items: center; gap: 24px;
+      }
+      .stp-paper .cs-section {
+        width: 277mm;                 /* A4 landscape printable width (297 - 2x10mm) */
+        min-height: 190mm;            /* A4 landscape printable height */
+        box-sizing: border-box;
+        margin: 0;
+        background: white;
+        border: none;
+        border-radius: 0;
+        box-shadow: 0 4px 16px rgba(15,23,42,0.12);
+        padding: 14mm;
+      }
+
+      @media print {
+        @page { size: A4 landscape; margin: 10mm; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+        .no-print { display: none !important; }
+        .stp-doc { background: white; }
+        .stp-paper { padding: 0; gap: 0; }
+        .stp-paper .cs-section {
+          width: auto; min-height: auto;
+          box-shadow: none; padding: 0;
+          page-break-after: always; break-after: page;
+          page-break-inside: auto; break-inside: auto;
+        }
+        .stp-paper .cs-section:last-child { page-break-after: auto; break-after: auto; }
+      }
+    `}</style>
+  );
+}
