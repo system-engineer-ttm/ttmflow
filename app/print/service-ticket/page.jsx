@@ -11,10 +11,15 @@ export default function ServiceTicketPrintPage() {
 
   React.useEffect(() => {
     try {
-      const raw = sessionStorage.getItem("ttm.serviceTicket");
+      // The Export button writes to localStorage (sessionStorage doesn't
+      // survive window.open in many browsers). Read, then clear the key so
+      // it doesn't linger after the tab closes.
+      const raw = localStorage.getItem("ttm.serviceTicket")
+               || sessionStorage.getItem("ttm.serviceTicket"); // legacy fallback
       if (!raw) { setState({ loading: false, rows: null }); return; }
       const data = JSON.parse(raw);
       setState({ loading: false, rows: data.rows || [], fileName: data.fileName || "", dateRange: data.dateRange || "" });
+      try { localStorage.removeItem("ttm.serviceTicket"); } catch (_) {}
     } catch (e) {
       setState({ loading: false, rows: null, error: e.message });
     }

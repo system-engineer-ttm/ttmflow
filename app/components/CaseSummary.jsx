@@ -43,13 +43,15 @@ export function CaseSummary({ lang }) {
 
   const dateRange = detectDateRange(rows);
 
-  // Open the standalone PDF document in a new tab (same pattern as FM-IT-01-01:
-  // we stash the parsed rows in sessionStorage and the /print page reads them).
+  // Open the standalone PDF document in a new tab. localStorage (not session)
+  // because window.open with noopener gives the new tab its own sessionStorage,
+  // so sessionStorage wouldn't survive the hop. The print page clears the
+  // entry as soon as it reads it.
   const exportPdf = () => {
     try {
-      sessionStorage.setItem("ttm.serviceTicket", JSON.stringify({ rows, fileName, dateRange }));
+      localStorage.setItem("ttm.serviceTicket", JSON.stringify({ rows, fileName, dateRange }));
     } catch (_) { /* ignore quota errors — open anyway */ }
-    window.open("/print/service-ticket", "_blank", "noopener,noreferrer");
+    window.open("/print/service-ticket", "_blank");
   };
 
   return (
