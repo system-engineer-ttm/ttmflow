@@ -505,23 +505,31 @@ function canonicalCustomer(name) {
   return raw || "—";
 }
 
+// Parse a ticket date string into a Date. Handles the two formats the
+// export uses: "28/5/2026 15:07" (DD/M/YYYY) and "2026-05-28 15:07"
+// (YYYY-MM-DD). Returns null if it can't.
+function parseTicketDate(s) {
+  if (!s) return null;
+  const str = String(s).trim();
+  let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);          // DD/M/YYYY
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);                // YYYY-MM-DD
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  m = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);                // DD-MM-YYYY
+  if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function fmtDate(s) {
-  if (!s) return "—";
-  // Input shape from CSV: "28/5/2026 15:07" → "28/05/2026"
-  const m = String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (!m) return String(s).slice(0, 10);
-  return `${m[1].padStart(2, "0")}/${m[2].padStart(2, "0")}/${m[3]}`;
+  const d = parseTicketDate(s);
+  if (!d) return s ? String(s).slice(0, 10) : "—";
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
 function detectDateRange(rows) {
   const dates = rows
-    .map(r => r["Open Time"])
-    .map(s => {
-      if (!s) return null;
-      const m = String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-      if (!m) return null;
-      return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-    })
+    .map(r => parseTicketDate(r["Open Time"]))
     .filter(Boolean);
   if (dates.length === 0) return "";
   const min = new Date(Math.min(...dates));
