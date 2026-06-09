@@ -58,6 +58,14 @@ export default function ServiceTicketPrintPage() {
         </span>
       </div>
 
+      {/* Tip — visible only on screen, reminds the user to enable background
+          graphics so the orange/blue/purple table styling actually prints. */}
+      <div className="no-print stp-tip">
+        💡 <b>เคล็ดลับ:</b> ในหน้าต่างพิมพ์ของ Chrome ให้กด <b>“การตั้งค่าเพิ่มเติม”</b> แล้วเปิด
+        <b> “กราฟิกพื้นหลัง”</b> เพื่อให้สีหัวตารางพิมพ์ออกมาด้วย — และปิด
+        <b> “ส่วนหัวและส่วนท้ายกระดาษ”</b> เพื่อไม่ให้มี URL/วันที่ติดอยู่บนแต่ละหน้า
+      </div>
+
       {/* The report — each .cs-section becomes an A4 page */}
       <div className="stp-paper">
         <ServiceTicketReport rows={state.rows} />
@@ -96,6 +104,15 @@ function PrintPageStyles() {
       .stp-btn-primary:hover { background: #f1f5f9; }
       .stp-meta { margin-left: auto; font-size: 12.5px; opacity: 0.95; }
 
+      .stp-tip {
+        background: #fff7ed;
+        color: #9a3412;
+        border-bottom: 1px solid #fed7aa;
+        padding: 10px 20px;
+        font-size: 12.5px;
+        line-height: 1.55;
+      }
+
       /* Each report section rendered as an A4 landscape sheet */
       .stp-paper {
         padding: 24px 0;
@@ -126,6 +143,22 @@ function PrintPageStyles() {
           page-break-inside: auto; break-inside: auto;
         }
         .stp-paper .cs-section:last-child { page-break-after: auto; break-after: auto; }
+
+        /* If a section's table overflows, let it flow to the next sheet but
+           (a) repeat the orange thead on each continuation page, and
+           (b) never split a single <tr>, so a customer's block stays whole. */
+        .cs-table thead { display: table-header-group; }
+        .cs-table tfoot { display: table-footer-group; }
+        .cs-table tr {
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+        /* Keep section title + first table row together on whatever page they
+           land on, so we never get a stranded title at the bottom of a page. */
+        .cs-section-head {
+          page-break-after: avoid;
+          break-after: avoid-page;
+        }
       }
     `}</style>
   );
