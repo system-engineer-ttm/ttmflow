@@ -179,8 +179,9 @@ function SectionRequestByCategory({ title, data, dateRange }) {
           )}
           {customers.map(([cust, cats], i) => {
             const list = [...cats.entries()].sort((a, b) => b[1] - a[1]);
+            const groupCls = i % 2 === 0 ? "cs-grp-a" : "cs-grp-b";
             return list.map(([cat, count], j) => (
-              <tr key={cust + cat}>
+              <tr key={cust + cat} className={cls(groupCls, j === 0 && "cs-grp-start")}>
                 {j === 0 && (
                   <>
                     <td rowSpan={list.length} className="cs-num">{i + 1}.</td>
@@ -203,7 +204,9 @@ function SectionRequestByCategory({ title, data, dateRange }) {
    "3 Examples of incident event cases"
    ═════════════════════════════════════════════════════════════ */
 function SectionIncidentExamples({ title, data, dateRange }) {
-  const examples = data.slice(0, 3);
+  // Only show incidents that actually have a recorded solution.
+  const hasSolve = (r) => String(r.Solotion || "").trim() !== "";
+  const examples = data.filter(hasSolve).slice(0, 3);
 
   return (
     <section className="cs-section">
@@ -266,16 +269,16 @@ function SectionCustomerOverview({ title, data, dateRange }) {
 
 function OverviewChart({ data }) {
   // Build per-customer × type counts
-  const customers = new Map();   // cust → { Incident, Request, Inquiry }
+  const customers = new Map();   // cust → { Incident, Request, Inquiry, total }
   data.forEach(r => {
     const cust = (r.Customer || "—").trim() || "—";
     const type = (r.Type || "").trim();
-    if (!customers.has(cust)) customers.set(cust, { Incident: 0, Request: 0, Inquiry: 0 });
+    if (!customers.has(cust)) customers.set(cust, { Incident: 0, Request: 0, Inquiry: 0, total: 0 });
     const m = customers.get(cust);
-    if (type === "Incident" || type === "Request" || type === "Inquiry") m[type]++;
+    if (type === "Incident" || type === "Request" || type === "Inquiry") { m[type]++; m.total++; }
   });
-  const rows = [...customers.entries()]
-    .sort((a, b) => a[0].localeCompare(b[0], "th"));
+  // Sort by busiest customer first — the report reads top-down by volume
+  const rows = [...customers.entries()].sort((a, b) => b[1].total - a[1].total);
 
   const totals = { Incident: 0, Request: 0, Inquiry: 0 };
   data.forEach(r => {
@@ -284,40 +287,40 @@ function OverviewChart({ data }) {
   });
   const grand = totals.Incident + totals.Request + totals.Inquiry;
 
-  // Find max for chart scaling
-  const max = Math.max(1, ...rows.map(([, c]) => Math.max(c.Incident, c.Request, c.Inquiry)));
+  // Scale by the busiest customer's total (stacked horizontal bar)
+  const max = Math.max(1, ...rows.map(([, c]) => c.total));
 
   return (
-    <div className="cs-overview">
-      <div className="cs-bar-wrap">
-        <div className="cs-bar-grid">
-          {rows.map(([cust, c]) => (
-            <div key={cust} className="cs-bar-col">
-              <div className="cs-bar-stack">
-                {c.Incident > 0 && (
-                  <div className="cs-bar cs-bar-incident" style={{ height: `${(c.Incident / max) * 100}%` }}>
-                    <span className="cs-bar-num">{c.Incident}</span>
-                  </div>
-                )}
-                {c.Request > 0 && (
-                  <div className="cs-bar cs-bar-request" style={{ height: `${(c.Request / max) * 100}%` }}>
-                    <span className="cs-bar-num">{c.Request}</span>
-                  </div>
-                )}
-                {c.Inquiry > 0 && (
-                  <div className="cs-bar cs-bar-inquiry" style={{ height: `${(c.Inquiry / max) * 100}%` }}>
-                    <span className="cs-bar-num">{c.Inquiry}</span>
-                  </div>
-                )}
-              </div>
-              <div className="cs-bar-label">{cust}</div>
+    <div className="cs-overview-v">
+      <div className="cs-hbar-wrap">
+        {rows.length === 0 && (
+          <div className="cs-empty" style={{ padding: "2rem 0" }}>— ไม่มีข้อมูล —</div>
+        )}
+        {rows.map(([cust, c]) => (
+          <div key={cust} className="cs-hbar-row">
+            <div className="cs-hbar-name" title={cust}>{cust}</div>
+            <div className="cs-hbar-track">
+              {c.Incident > 0 && (
+                <div className="cs-hbar cs-bar-incident" style={{ width: `${(c.Incident / max) * 100}%` }}>
+                  {c.Incident}
+                </div>
+              )}
+              {c.Request > 0 && (
+                <div className="cs-hbar cs-bar-request" style={{ width: `${(c.Request / max) * 100}%` }}>
+                  {c.Request}
+                </div>
+              )}
+              {c.Inquiry > 0 && (
+                <div className="cs-hbar cs-bar-inquiry" style={{ width: `${(c.Inquiry / max) * 100}%` }}>
+                  {c.Inquiry}
+                </div>
+              )}
             </div>
-          ))}
-          {rows.length === 0 && (
-            <div className="cs-empty" style={{ width: "100%", padding: "2rem 0" }}>— ไม่มีข้อมูล —</div>
-          )}
-        </div>
-        <div className="cs-bar-legend">
+            <div className="cs-hbar-total">{c.total}</div>
+          </div>
+        ))}
+
+        <div className="cs-bar-legend" style={{ marginTop: 16 }}>
           <span><i className="cs-dot cs-bar-incident" /> Incident</span>
           <span><i className="cs-dot cs-bar-request" /> Request</span>
           <span><i className="cs-dot cs-bar-inquiry" /> Inquiry</span>
@@ -581,7 +584,15 @@ function PrintStyles() {
       }
       .cs-table tbody tr:nth-child(even) td { background: #fde9dd; }
       .cs-num { text-align: center; color: #64748b; font-size: 0.78rem; }
-      .cs-cust { font-weight: 500; }
+      .cs-cust { font-weight: 600; font-size: 0.85rem; }
+
+      /* Request table — alternate the whole customer block, not row-by-row,
+         and draw a strong divider between customers so each is easy to scan. */
+      .cs-table-request tbody tr.cs-grp-a td { background: #fdeee7 !important; }
+      .cs-table-request tbody tr.cs-grp-b td { background: #fbded0 !important; }
+      .cs-table-request tbody tr.cs-grp-start td { border-top: 2px solid #ee6c4d; }
+      .cs-table-request .cs-num,
+      .cs-table-request .cs-cust { border-right: 1px solid #f3c9b6; }
       .cs-empty {
         padding: 28px !important; text-align: center; color: var(--muted);
         font-size: 0.85rem; background: #fbe6dc !important;
@@ -594,42 +605,38 @@ function PrintStyles() {
       .cs-bullet { color: #2c5282; font-weight: 700; margin-right: 4px; }
       .cs-bullet.cs-ok { color: #047857; }
 
-      /* Overview (bar chart + totals) */
-      .cs-overview {
-        display: grid; grid-template-columns: 1fr 360px; gap: 24px;
-        align-items: end;
+      /* Overview — horizontal bars (left) + totals table (right) */
+      .cs-overview-v {
+        display: grid; grid-template-columns: 1fr 320px; gap: 28px;
+        align-items: start;
       }
-      .cs-bar-wrap { width: 100%; }
-      .cs-bar-grid {
-        display: flex; align-items: end; gap: 4px;
-        height: 220px; padding: 8px 0;
-        border-bottom: 1px solid #94a3b8;
-        overflow-x: auto;
+      .cs-hbar-wrap { width: 100%; }
+      .cs-hbar-row {
+        display: grid;
+        grid-template-columns: 150px 1fr 34px;
+        align-items: center; gap: 12px;
+        padding: 5px 0;
       }
-      .cs-bar-col {
-        display: flex; flex-direction: column; align-items: center;
-        flex: 1; min-width: 36px;
+      .cs-hbar-row + .cs-hbar-row { border-top: 1px solid #f1f5f9; }
+      .cs-hbar-name {
+        font-size: 0.78rem; color: #334155; text-align: right;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
-      .cs-bar-stack {
-        position: relative; width: 16px; height: 200px;
-        display: flex; flex-direction: column; justify-content: flex-end;
+      .cs-hbar-track {
+        display: flex; align-items: stretch; height: 22px;
+        background: #f1f5f9; border-radius: 4px; overflow: hidden;
       }
-      .cs-bar {
-        width: 100%; position: relative;
-        border-top: 1px solid rgba(0,0,0,0.05);
+      .cs-hbar {
+        display: flex; align-items: center; justify-content: center;
+        color: white; font-size: 11px; font-weight: 700;
+        min-width: 18px; transition: width 0.2s;
+      }
+      .cs-hbar-total {
+        font-size: 0.82rem; font-weight: 700; color: #0f172a; text-align: center;
       }
       .cs-bar-incident { background: #ee6c4d; }
       .cs-bar-request  { background: #1d4ed8; }
       .cs-bar-inquiry  { background: #16a34a; }
-      .cs-bar-num {
-        position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
-        font-size: 10px; font-weight: 600; color: #0f172a;
-      }
-      .cs-bar-label {
-        margin-top: 6px; font-size: 9px;
-        writing-mode: vertical-rl; transform: rotate(180deg);
-        white-space: nowrap; color: #475569;
-      }
       .cs-bar-legend {
         display: flex; gap: 18px; margin-top: 14px;
         font-size: 0.78rem; color: #475569;
