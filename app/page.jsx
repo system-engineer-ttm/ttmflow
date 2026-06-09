@@ -20,6 +20,7 @@ import { Submitted } from "./components/Submitted";
 import { Login } from "./components/Login";
 import { UserManagement } from "./components/UserManagement";
 import { SignatureSetup } from "./components/SignatureSetup";
+import { CaseSummary } from "./components/CaseSummary";
 
 const TWEAK_DEFAULTS = {
   lang: "th",
@@ -256,6 +257,8 @@ function AppShell() {
     screen = <TemplateBuilder lang={lang} t={tt} back={() => setRouteWithReset("settings")} onSave={saveFormTemplate} />;
   else if (route === "users")
     screen = <UserManagement lang={lang} />;
+  else if (route === "caseSummary")
+    screen = <CaseSummary lang={lang} />;
   else
     screen = <Dashboard lang={lang} role={role} t={tt} setRoute={setRouteWithReset} openRequest={openRequest} currentUser={currentUser} />;
 

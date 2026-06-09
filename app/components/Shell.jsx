@@ -45,6 +45,7 @@ export function Sidebar({ lang, route, setRoute, role, t, onLogout, currentUser 
     { id: "it",           icon: "tool",        label: t.nav.itQueue, count: itQ },
     { id: "archive",      icon: "archive",     label: t.nav.archive },
     { id: "notif",        icon: "log",         label: t.nav.notifications },
+    { id: "caseSummary",  icon: "trending-up", label: t.nav.caseSummary },
     { id: "_divider",     divider: true },
     { id: "settings",     icon: "settings",    label: t.nav.settings },
     { id: "integrations", icon: "external",    label: t.nav.integrations },
