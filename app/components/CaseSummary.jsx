@@ -75,7 +75,13 @@ export function CaseSummary({ lang }) {
       <SectionIncidentExamples title="Customer Support - Incident" data={customerRows.filter(r => isIncident(r))} dateRange={dateRange} />
       <SectionCustomerOverview title="Customer Support" data={customerRows} dateRange={dateRange} />
 
-      {/* ── Internal Support ── */}
+      {/* ── Internal Support ── (detail tables only when there's data) ── */}
+      {internalRows.filter(r => isRequest(r)).length > 0 && (
+        <SectionRequestByCategory title="Internal Support - Request" data={internalRows.filter(r => isRequest(r))} dateRange={dateRange} />
+      )}
+      {internalRows.filter(r => isIncident(r) && String(r.Solotion || "").trim() !== "").length > 0 && (
+        <SectionIncidentExamples title="Internal Support - Incident" data={internalRows.filter(r => isIncident(r))} dateRange={dateRange} />
+      )}
       <SectionInternalOverview title="Internal Support" data={internalRows} dateRange={dateRange} />
     </div>
   );
