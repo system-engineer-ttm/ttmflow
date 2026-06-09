@@ -37,6 +37,13 @@ const ACCENT_PALETTES = {
   rose:   { brand: "#e11d48", brandDark: "#be123c", brandSoft: "#ffe4ec", ring: "rgba(225,29,72,0.18)" },
 };
 
+// Landing route for a role — the first menu it's actually allowed to see.
+// Locked-down roles (e.g. ticketreport) skip straight to their one page.
+function homeForRole(r) {
+  const order = ["dashboard", "caseSummary", "my", "approvals", "it", "archive", "notif", "settings", "integrations", "users", "flows"];
+  return order.find(route => ROLE_PERMISSIONS[route]?.[r] === true) || "dashboard";
+}
+
 export default function App() {
   return (
     <AppDataProvider enabled={true}>
@@ -61,7 +68,13 @@ function AppShell() {
     fetch("/api/auth/me")
       .then(r => r.json())
       .then(({ user }) => {
-        if (user) { setCurrentUser(user); setTweak("role", user.role); }
+        if (user) {
+          setCurrentUser(user);
+          setTweak("role", user.role);
+          // Land on the first menu this role can access (locked-down roles
+          // like ticketreport can't see the default dashboard).
+          setRoute(homeForRole(user.role));
+        }
       })
       .catch(() => {})
       .finally(() => setAuthChecked(true));
@@ -72,7 +85,7 @@ function AppShell() {
   const handleLogin = (user) => {
     setCurrentUser(user);
     setTweak("role", user.role);
-    setRoute("dashboard");
+    setRoute(homeForRole(user.role));
     data.reload();
   };
 
@@ -121,7 +134,7 @@ function AppShell() {
   const openFlow = (id) => { setFlowId(id); setRoute("flowDetail"); };
 
   const setRouteWithReset = (r) => {
-    const target = canAccess(r) ? r : "dashboard";
+    const target = canAccess(r) ? r : homeForRole(role);
     setRoute(target);
     if (target !== "fill") setFormCode(null);
     if (target !== "request") setReqId(null);
@@ -262,11 +275,14 @@ function AppShell() {
   else
     screen = <Dashboard lang={lang} role={role} t={tt} setRoute={setRouteWithReset} openRequest={openRequest} currentUser={currentUser} />;
 
-  // Block app behind SignatureSetup if user has no signature on file
+  // Block app behind SignatureSetup if user has no signature on file.
   // Check signature directly (not the boolean flag) so the gate releases as
-  // soon as the field is populated — regardless of whether the API also
-  // returned hasSignature.
-  const needsSignature = !!currentUser && !currentUser.signature;
+  // soon as the field is populated. Report-only roles (ticketreport, auditor)
+  // never sign documents, so they're exempt from the signature gate.
+  const SIGN_EXEMPT_ROLES = ["ticketreport", "auditor"];
+  const needsSignature = !!currentUser
+    && !currentUser.signature
+    && !SIGN_EXEMPT_ROLES.includes(currentUser.role);
   const handleSignatureSaved = (sig) => {
     setCurrentUser(prev => prev ? { ...prev, signature: sig, hasSignature: true } : prev);
     setEditingSignature(false);
@@ -309,13 +325,14 @@ function AppShell() {
         {/* Role switcher — Admin only (for previewing other role views) */}
         {currentUser?.role === "admin" && (
           <TweakSection title={lang === "th" ? "ดูในมุมมอง (Admin)" : "Preview as (Admin)"}>
-            <TweakSelect value={t.role} onChange={v => { setTweak("role", v); setRouteWithReset("dashboard"); }}
+            <TweakSelect value={t.role} onChange={v => { setTweak("role", v); setRoute(homeForRole(v)); }}
               options={[
-                { value: "requester", label: lang === "th" ? "พนักงาน (Requester)" : "Employee" },
-                { value: "approver",  label: lang === "th" ? "ผู้อนุมัติ" : "Approver" },
-                { value: "it",        label: lang === "th" ? "ทีม IT" : "IT Staff" },
-                { value: "admin",     label: "Admin / QMR" },
-                { value: "auditor",   label: "Auditor" },
+                { value: "requester",    label: lang === "th" ? "พนักงาน (Requester)" : "Employee" },
+                { value: "approver",     label: lang === "th" ? "ผู้อนุมัติ" : "Approver" },
+                { value: "it",           label: lang === "th" ? "ทีม IT" : "IT Staff" },
+                { value: "admin",        label: "Admin / QMR" },
+                { value: "auditor",      label: "Auditor" },
+                { value: "ticketreport", label: lang === "th" ? "รายงาน Ticket" : "Ticket Report" },
               ]} />
           </TweakSection>
         )}

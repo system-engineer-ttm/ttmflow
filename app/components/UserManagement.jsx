@@ -18,11 +18,11 @@ const AVATAR_COLORS = [
   "#0369a1","#0d9488","#14b8a6","#059669","#e11d48",
 ];
 
-const ROLES = ["requester","approver","it","admin","auditor"];
+const ROLES = ["requester","approver","it","admin","auditor","ticketreport"];
 
 const ROLE_LABEL = {
-  th: { requester:"พนักงาน", approver:"ผู้อนุมัติ", it:"ทีม IT", admin:"Admin / QMR", auditor:"Auditor" },
-  en: { requester:"Employee", approver:"Approver",  it:"IT Staff", admin:"Admin / QMR", auditor:"Auditor" },
+  th: { requester:"พนักงาน", approver:"ผู้อนุมัติ", it:"ทีม IT", admin:"Admin / QMR", auditor:"Auditor", ticketreport:"รายงาน Ticket" },
+  en: { requester:"Employee", approver:"Approver",  it:"IT Staff", admin:"Admin / QMR", auditor:"Auditor", ticketreport:"Ticket Report" },
 };
 
 /* Labels for each permission row */
@@ -35,6 +35,7 @@ const PERM_ROWS = [
   { key:"it",           th:"งานที่ได้รับมอบหมาย",     en:"IT Queue" },
   { key:"archive",      th:"คลังเอกสาร",              en:"Archive" },
   { key:"notif",        th:"บันทึกการแจ้งเตือน",      en:"Notification Log" },
+  { key:"caseSummary",  th:"Service Ticket Summary",  en:"Service Ticket Summary" },
   { key:"settings",     th:"ตั้งค่าฟอร์ม",           en:"Form Templates" },
   { key:"integrations", th:"เชื่อมต่อการแจ้งเตือน",   en:"Integrations" },
   { key:"users",        th:"จัดการผู้ใช้งาน",         en:"User Management" },
@@ -571,8 +572,8 @@ function PermissionsTab({ lang, refresh }) {
    ────────────────────────────────────────────────────────────────────────── */
 function RoleBadge({ role, lang }) {
   const labels = {
-    th: { requester:"พนักงาน", approver:"ผู้อนุมัติ", it:"ทีม IT", admin:"Admin", auditor:"Auditor" },
-    en: { requester:"Employee", approver:"Approver",   it:"IT Staff", admin:"Admin", auditor:"Auditor" },
+    th: { requester:"พนักงาน", approver:"ผู้อนุมัติ", it:"ทีม IT", admin:"Admin", auditor:"Auditor", ticketreport:"รายงาน Ticket" },
+    en: { requester:"Employee", approver:"Approver",   it:"IT Staff", admin:"Admin", auditor:"Auditor", ticketreport:"Ticket Report" },
   };
   return (
     <span className={cls("ttm-role-badge", `role-${role}`)}>
@@ -585,7 +586,7 @@ function RouteIcon({ route }) {
   const map = {
     dashboard:"home", flows:"trending-up", new:"plus", my:"list",
     approvals:"check-circle", it:"tool", archive:"archive",
-    notif:"log", settings:"settings", integrations:"external", users:"users",
+    notif:"log", caseSummary:"trending-up", settings:"settings", integrations:"external", users:"users",
   };
   return <Icon name={map[route] ?? "circle"} size={14} style={{ color:"var(--muted)", flexShrink:0 }} />;
 }

@@ -54,7 +54,7 @@ export function CaseSummary({ lang }) {
       {/* ── Top toolbar (hidden on print) ── */}
       <div className="cs-toolbar no-print">
         <div>
-          <h2 style={{ margin: 0 }}>Case Summary</h2>
+          <h2 style={{ margin: 0 }}>Service Ticket Summary</h2>
           <div className="ttm-muted ttm-small" style={{ marginTop: 4 }}>
             {th ? "อ่านจากไฟล์: " : "Source: "}<b>{fileName}</b>
             {dateRange && <> · {th ? "ช่วงข้อมูล" : "Period"}: <b>{dateRange}</b></>}
@@ -93,7 +93,7 @@ function UploadStep({ th, onFile, error }) {
     <div className="ttm-page">
       <div className="ttm-list-head">
         <div>
-          <h2>Case Summary</h2>
+          <h2>Service Ticket Summary</h2>
           <p>{th
             ? "อัปโหลดไฟล์ CSV report จากระบบ Ticket — ระบบจะสร้างรายงาน 2 ส่วน (Internal + Customer Support)"
             : "Upload the Ticket export CSV — we'll build a 2-section report (Internal + Customer Support)."}</p>

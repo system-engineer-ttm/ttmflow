@@ -53,11 +53,19 @@ export function Sidebar({ lang, route, setRoute, role, t, onLogout, currentUser 
   ];
 
   // Filter nav items using ROLE_PERMISSIONS — fall back to "allowed" for items not in the matrix
-  const visible = items.filter(it => {
+  const allowed = items.filter(it => {
     if (it.divider) return true;
     const perm = ROLE_PERMISSIONS[it.id];
     if (!perm) return true; // sub-routes not in matrix are always allowed
     return perm[role] === true;
+  });
+  // Drop dividers that aren't sandwiched between two real items (avoids a
+  // dangling separator for locked-down roles like ticketreport).
+  const visible = allowed.filter((it, i) => {
+    if (!it.divider) return true;
+    const prevReal = allowed.slice(0, i).some(x => !x.divider);
+    const nextReal = allowed.slice(i + 1).some(x => !x.divider);
+    return prevReal && nextReal;
   });
 
   return (

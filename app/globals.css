@@ -2626,6 +2626,8 @@ p { margin: 0; color: var(--text-2); }
 .ttm-role-badge.role-it        { background: #ecfdf5; color: #059669; }
 .ttm-role-badge.role-admin     { background: #fce7f3; color: #9d174d; }
 .ttm-role-badge.role-auditor   { background: #f3f4f6; color: #4b5563; }
+.ttm-role-badge.role-ticketreport { background: #eef2ff; color: #4338ca; }
+[data-theme="dark"] .ttm-role-badge.role-ticketreport { background: #1e1b4b; color: #a5b4fc; }
 [data-theme="dark"] .ttm-role-badge.role-approver { background: #3d2d00; color: #fbbf24; }
 [data-theme="dark"] .ttm-role-badge.role-it       { background: #022c22; color: #34d399; }
 [data-theme="dark"] .ttm-role-badge.role-admin    { background: #3d0a1e; color: #f472b6; }

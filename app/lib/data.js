@@ -16,7 +16,7 @@ export const i18n = {
       itQueue: "งานที่ได้รับมอบหมาย",
       archive: "คลังเอกสาร",
       notifications: "บันทึกการแจ้งเตือน",
-      caseSummary: "Case Summary",
+      caseSummary: "Service Ticket Summary",
       settings: "ตั้งค่าฟอร์ม",
       integrations: "เชื่อมต่อการแจ้งเตือน",
       users: "จัดการผู้ใช้งาน",
@@ -119,7 +119,7 @@ export const i18n = {
       itQueue: "Assigned Work",
       archive: "Document Archive",
       notifications: "Notification Log",
-      caseSummary: "Case Summary",
+      caseSummary: "Service Ticket Summary",
       settings: "Form Templates",
       integrations: "Notification Integrations",
       users: "User Management",
@@ -378,19 +378,20 @@ export const USERS = {
 };
 
 // Per-menu access control. Mutable so Admin can edit via the UI.
+// "ticketreport" is a locked-down role: it can ONLY see Service Ticket Summary.
 export const ROLE_PERMISSIONS = {
-  dashboard:    { requester: true,  approver: true,  it: true,  admin: true, auditor: true  },
-  flows:        { requester: true,  approver: true,  it: true,  admin: true, auditor: true  },
-  new:          { requester: true,  approver: true,  it: true,  admin: true, auditor: false },
-  my:           { requester: true,  approver: true,  it: true,  admin: true, auditor: false },
-  approvals:    { requester: false, approver: true,  it: false, admin: true, auditor: false },
-  it:           { requester: false, approver: false, it: true,  admin: true, auditor: false },
-  archive:      { requester: true,  approver: true,  it: true,  admin: true, auditor: true  },
-  notif:        { requester: false, approver: false, it: true,  admin: true, auditor: false },
-  caseSummary:  { requester: false, approver: false, it: true,  admin: true, auditor: true  },
-  settings:     { requester: false, approver: false, it: false, admin: true, auditor: false },
-  integrations: { requester: false, approver: false, it: false, admin: true, auditor: false },
-  users:        { requester: false, approver: false, it: false, admin: true, auditor: false },
+  dashboard:    { requester: true,  approver: true,  it: true,  admin: true, auditor: true,  ticketreport: false },
+  flows:        { requester: true,  approver: true,  it: true,  admin: true, auditor: true,  ticketreport: false },
+  new:          { requester: true,  approver: true,  it: true,  admin: true, auditor: false, ticketreport: false },
+  my:           { requester: true,  approver: true,  it: true,  admin: true, auditor: false, ticketreport: false },
+  approvals:    { requester: false, approver: true,  it: false, admin: true, auditor: false, ticketreport: false },
+  it:           { requester: false, approver: false, it: true,  admin: true, auditor: false, ticketreport: false },
+  archive:      { requester: true,  approver: true,  it: true,  admin: true, auditor: true,  ticketreport: false },
+  notif:        { requester: false, approver: false, it: true,  admin: true, auditor: false, ticketreport: false },
+  caseSummary:  { requester: false, approver: false, it: true,  admin: true, auditor: true,  ticketreport: true  },
+  settings:     { requester: false, approver: false, it: false, admin: true, auditor: false, ticketreport: false },
+  integrations: { requester: false, approver: false, it: false, admin: true, auditor: false, ticketreport: false },
+  users:        { requester: false, approver: false, it: false, admin: true, auditor: false, ticketreport: false },
 };
 
 export const REQUESTS = [
