@@ -496,8 +496,12 @@ function detectDateRange(rows) {
   if (dates.length === 0) return "";
   const min = new Date(Math.min(...dates));
   const max = new Date(Math.max(...dates));
+  // Expand to whole months: 1st of the earliest month → last day of the
+  // latest month. e.g. data on 06/05 - 28/05 reports as 01/05 - 31/05.
+  const start = new Date(min.getFullYear(), min.getMonth(), 1);
+  const end   = new Date(max.getFullYear(), max.getMonth() + 1, 0); // day 0 of next month = last day of this month
   const f = (d) => `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${String(d.getFullYear()+543).slice(-2)}`;
-  return `${f(min)} - ${f(max)}`;
+  return `${f(start)} - ${f(end)}`;
 }
 
 /* ─────────────────────────────────────────────────────────────
