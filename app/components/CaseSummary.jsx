@@ -46,6 +46,13 @@ export function CaseSummary({ lang }) {
   const internalRows = rows.filter(r => isInbound(r));
   const dateRange = detectDateRange(rows);
 
+  const hasSolve = (r) => String(r.Solotion || "").trim() !== "";
+  // Per-section data slices (a section renders only when its slice is non-empty)
+  const custReq = customerRows.filter(isRequest);
+  const custInc = customerRows.filter(r => isIncident(r) && hasSolve(r));
+  const intReq  = internalRows.filter(isRequest);
+  const intInc  = internalRows.filter(r => isIncident(r) && hasSolve(r));
+
   return (
     <div className="ttm-page cs-page">
       <PrintStyles />
@@ -70,19 +77,36 @@ export function CaseSummary({ lang }) {
         </div>
       </div>
 
-      {/* ── Customer Support ── */}
-      <SectionRequestByCategory title="Customer Support - Request" data={customerRows.filter(r => isRequest(r))} dateRange={dateRange} />
-      <SectionIncidentExamples title="Customer Support - Incident" data={customerRows.filter(r => isIncident(r))} dateRange={dateRange} />
-      <SectionCustomerOverview title="Customer Support" data={customerRows} dateRange={dateRange} />
+      {/* Each section becomes its own PDF page (page-break-after in print CSS).
+          A section renders only when it has data → empty pages are skipped.
+          Order: Cust Request → Cust Incident → Cust overview →
+                 Int Request → Int Incident → Int overview */}
 
-      {/* ── Internal Support ── (detail tables only when there's data) ── */}
-      {internalRows.filter(r => isRequest(r)).length > 0 && (
-        <SectionRequestByCategory title="Internal Support - Request" data={internalRows.filter(r => isRequest(r))} dateRange={dateRange} />
+      {/* Page 1 — Customer Support · Request */}
+      {custReq.length > 0 && (
+        <SectionRequestByCategory title="Customer Support - Request" data={custReq} dateRange={dateRange} />
       )}
-      {internalRows.filter(r => isIncident(r) && String(r.Solotion || "").trim() !== "").length > 0 && (
-        <SectionIncidentExamples title="Internal Support - Incident" data={internalRows.filter(r => isIncident(r))} dateRange={dateRange} />
+      {/* Page 2 — Customer Support · Incident */}
+      {custInc.length > 0 && (
+        <SectionIncidentExamples title="Customer Support - Incident" data={customerRows.filter(isIncident)} dateRange={dateRange} />
       )}
-      <SectionInternalOverview title="Internal Support" data={internalRows} dateRange={dateRange} />
+      {/* Page 3 — Customer Support · overview */}
+      {customerRows.length > 0 && (
+        <SectionCustomerOverview title="Customer Support" data={customerRows} dateRange={dateRange} />
+      )}
+
+      {/* Page 4 — Internal Support · Request */}
+      {intReq.length > 0 && (
+        <SectionRequestByCategory title="Internal Support - Request" data={intReq} dateRange={dateRange} />
+      )}
+      {/* Page 5 — Internal Support · Incident */}
+      {intInc.length > 0 && (
+        <SectionIncidentExamples title="Internal Support - Incident" data={internalRows.filter(isIncident)} dateRange={dateRange} />
+      )}
+      {/* Page 6 — Internal Support · overview */}
+      {internalRows.length > 0 && (
+        <SectionInternalOverview title="Internal Support" data={internalRows} dateRange={dateRange} />
+      )}
     </div>
   );
 }
@@ -721,18 +745,35 @@ function PrintStyles() {
       .cs-pie-empty span { font-size: 28px; font-weight: 700; }
       .cs-pie-empty small { font-size: 12px; margin-top: 4px; }
 
-      /* Print */
+      /* Print — export a clean PDF that looks exactly like the on-screen
+         report, one section per page, in document order. */
       @media print {
-        .no-print { display: none !important; }
-        .cs-page { padding: 0; max-width: none; }
-        .cs-section {
-          margin-bottom: 0;
-          page-break-after: always;
-          border: none; padding: 16mm;
-          box-shadow: none;
+        @page { size: A4 landscape; margin: 10mm; }
+
+        /* Force every colour (table headers, tinted rows, bars, pie) to print
+           instead of being dropped to white by the browser default. */
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
         }
-        .cs-section:last-of-type { page-break-after: auto; }
-        body { background: white !important; }
+
+        .no-print { display: none !important; }
+        body { background: #ffffff !important; }
+        .cs-page { padding: 0; margin: 0; max-width: none; }
+
+        /* Keep the card look from screen; one section per page. */
+        .cs-section {
+          margin: 0 !important;
+          break-inside: auto;
+          page-break-inside: auto;
+          page-break-after: always;
+          break-after: page;
+        }
+        .cs-section:last-of-type {
+          page-break-after: auto;
+          break-after: auto;
+        }
       }
     `}</style>
   );
