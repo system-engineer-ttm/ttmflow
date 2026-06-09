@@ -402,10 +402,38 @@ function Pie({ incident, request }) {
       </div>
     );
   }
+
   const r = 80;
   const cx = 100, cy = 100;
+  const INC_COLOR = "#ee6c4d";
+  const REQ_COLOR = "#1d4ed8";
+
+  // Label position helper — places the count at the angular midpoint of a slice
+  const labelAt = (midDeg, count, color) => {
+    const a = (midDeg - 90) * Math.PI / 180;
+    return (
+      <text x={cx + r * 0.5 * Math.cos(a)} y={cy + r * 0.5 * Math.sin(a)}
+            textAnchor="middle" dominantBaseline="middle"
+            fill="#fff" fontSize="16" fontWeight="700">{count}</text>
+    );
+  };
+
+  // ── Single category → full circle (an SVG <path> arc can't draw 360°,
+  //    start==end is degenerate and renders nothing). Use <circle>. ──
+  if (incident === 0 || request === 0) {
+    const only = incident > 0 ? incident : request;
+    const color = incident > 0 ? INC_COLOR : REQ_COLOR;
+    return (
+      <svg viewBox="0 0 200 200" className="cs-pie">
+        <circle cx={cx} cy={cy} r={r} fill={color} />
+        <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle"
+              fill="#fff" fontSize="20" fontWeight="700">{only}</text>
+      </svg>
+    );
+  }
+
+  // ── Two categories → two arcs ──
   const incFrac = incident / total;
-  // Build a single SVG donut/pie
   const incAngle = incFrac * 360;
   const arc = (start, end) => {
     const s = (start - 90) * Math.PI / 180;
@@ -417,20 +445,10 @@ function Pie({ incident, request }) {
   };
   return (
     <svg viewBox="0 0 200 200" className="cs-pie">
-      {incident > 0 && <path d={arc(0, incAngle)} fill="#ee6c4d" />}
-      {request  > 0 && <path d={arc(incAngle, 360)} fill="#1d4ed8" />}
-      {incident > 0 && (
-        <text x={cx + r * 0.45 * Math.cos((incFrac * 180 - 90) * Math.PI / 180)}
-              y={cy + r * 0.45 * Math.sin((incFrac * 180 - 90) * Math.PI / 180)}
-              textAnchor="middle" dominantBaseline="middle"
-              fill="#fff" fontSize="14" fontWeight="600">{incident}</text>
-      )}
-      {request > 0 && (
-        <text x={cx + r * 0.45 * Math.cos(((incFrac * 360 + 360) / 2 - 90) * Math.PI / 180)}
-              y={cy + r * 0.45 * Math.sin(((incFrac * 360 + 360) / 2 - 90) * Math.PI / 180)}
-              textAnchor="middle" dominantBaseline="middle"
-              fill="#fff" fontSize="14" fontWeight="600">{request}</text>
-      )}
+      <path d={arc(0, incAngle)}   fill={INC_COLOR} />
+      <path d={arc(incAngle, 360)} fill={REQ_COLOR} />
+      {labelAt(incAngle / 2, incident, INC_COLOR)}
+      {labelAt((incAngle + 360) / 2, request, REQ_COLOR)}
     </svg>
   );
 }
