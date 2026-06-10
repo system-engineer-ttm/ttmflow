@@ -160,35 +160,35 @@ function PrintPageStyles() {
           break-after: avoid-page;
         }
 
-        /* Compress everything for print so more rows fit on a single A4
-           landscape sheet — the section title shrinks, the table cells lose
-           padding, and bars/totals shrink to match. */
-        .cs-section { padding: 8mm 10mm !important; }
-        .cs-section-head h3 { font-size: 1.05rem !important; }
+        /* Tighten padding (not font sizes) so more rows fit per A4 sheet
+           while staying easy to read. Goal: 17 request rows + thead in
+           ~140mm of vertical space, well under the 190mm we have. */
+        .cs-section { padding: 8mm 12mm 6mm !important; }
+        .cs-section-head h3 { font-size: 1.25rem !important; }
         .cs-section-head { padding-bottom: 5px !important; margin-bottom: 10px !important; }
-        .cs-period, .cs-period-foot { font-size: 10px !important; }
-        .cs-subhead { font-size: 11px !important; margin: 4px 0 8px !important; }
+        .cs-period, .cs-period-foot { font-size: 11px !important; }
+        .cs-subhead { font-size: 13px !important; margin: 6px 0 10px !important; }
 
-        .cs-table { font-size: 10.5px !important; }
-        .cs-table th { padding: 5px 8px !important; }
-        .cs-table td { padding: 4px 8px !important; line-height: 1.35 !important; }
-        .cs-num   { font-size: 9.5px !important; }
-        .cs-cust  { font-size: 10.5px !important; }
+        .cs-table { font-size: 12px !important; }
+        .cs-table th { padding: 5px 10px !important; }
+        .cs-table td { padding: 3px 10px !important; line-height: 1.3 !important; }
+        .cs-num   { font-size: 11px !important; }
+        .cs-cust  { font-size: 12px !important; }
 
-        /* Overview sheet — compact bars + totals */
-        .cs-hbar-row { padding: 3px 0 !important; grid-template-columns: 140px 1fr 30px !important; }
-        .cs-hbar-name { font-size: 10px !important; }
-        .cs-hbar-track { height: 18px !important; }
-        .cs-hbar { font-size: 10px !important; }
-        .cs-hbar-total { font-size: 10px !important; }
-        .cs-bar-legend { font-size: 10px !important; margin-top: 8px !important; }
-        .cs-totals-table { font-size: 10px !important; }
-        .cs-totals-table th, .cs-totals-table td { padding: 5px 8px !important; }
-        .cs-grand { font-size: 1.05rem !important; }
+        /* Overview bars + totals stay readable */
+        .cs-hbar-row { padding: 4px 0 !important; grid-template-columns: 160px 1fr 32px !important; }
+        .cs-hbar-name { font-size: 11px !important; }
+        .cs-hbar-track { height: 20px !important; }
+        .cs-hbar { font-size: 11px !important; }
+        .cs-hbar-total { font-size: 11px !important; }
+        .cs-bar-legend { font-size: 11px !important; margin-top: 10px !important; }
+        .cs-totals-table { font-size: 12px !important; }
+        .cs-totals-table th, .cs-totals-table td { padding: 6px 10px !important; }
+        .cs-grand { font-size: 1.2rem !important; }
 
-        /* Internal pie — shrink a bit so the layout doesn't push to next page */
-        .cs-internal { padding: 8px 0 !important; gap: 24px !important; }
-        .cs-pie { width: 180px !important; height: 180px !important; }
+        /* Internal pie — proper size now that we have room */
+        .cs-internal { padding: 16px 0 !important; gap: 36px !important; }
+        .cs-pie { width: 220px !important; height: 220px !important; }
       }
     `}</style>
   );
