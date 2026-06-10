@@ -2,6 +2,7 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { Avatar, cls } from "./Ui";
+import { useAppData } from "../lib/AppDataContext";
 
 /* ── API helpers ── */
 async function apiFetch(path, opts = {}) {
@@ -9,6 +10,65 @@ async function apiFetch(path, opts = {}) {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error ?? "Request failed");
   return json;
+}
+
+/* ── Excel template columns ── */
+const IMPORT_COLUMNS = [
+  { key: "nameTh",   label: "ชื่อ-นามสกุล (ภาษาไทย)*" },
+  { key: "nameEn",   label: "Full Name (English)" },
+  { key: "titleTh",  label: "ตำแหน่ง (ภาษาไทย)" },
+  { key: "titleEn",  label: "Job Title (English)" },
+  { key: "dept",     label: "แผนก / Department" },
+  { key: "username", label: "Username*" },
+  { key: "password", label: "Password (default: 1234)" },
+  { key: "role",     label: "Role* (requester/approver/it/admin/auditor/ticketreport)" },
+];
+
+function downloadTemplate() {
+  // Dynamic import so xlsx stays out of the initial bundle
+  import("xlsx").then(({ utils, writeFile }) => {
+    const ws = utils.aoa_to_sheet([
+      IMPORT_COLUMNS.map(c => c.label),
+      ["สมชาย ใจดี", "Somchai Jaidee", "พนักงาน", "Staff", "Operations", "somchai.j", "P@ssw0rd", "requester"],
+      ["สมหญิง รักงาน", "Somying Rakngarn", "หัวหน้าทีม", "Team Lead", "IT", "somying.r", "P@ssw0rd", "it"],
+    ]);
+    // Style the header row (column widths)
+    ws["!cols"] = IMPORT_COLUMNS.map((_, i) => ({ wch: i === 7 ? 52 : 28 }));
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Users");
+    writeFile(wb, "TTMFlow_User_Import_Template.xlsx");
+  });
+}
+
+function parseExcelFile(file) {
+  return new Promise((resolve, reject) => {
+    import("xlsx").then(({ read, utils }) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const wb = read(e.target.result, { type: "array" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const raw = utils.sheet_to_json(ws, { header: 1, defval: "" });
+          if (raw.length < 2) { reject(new Error("ไฟล์ไม่มีข้อมูล")); return; }
+          // Use row 0 as header to map columns by position
+          const rows = raw.slice(1).filter(r => r.some(c => String(c).trim()));
+          const users = rows.map(r => ({
+            nameTh:   String(r[0] ?? "").trim(),
+            nameEn:   String(r[1] ?? "").trim(),
+            titleTh:  String(r[2] ?? "").trim(),
+            titleEn:  String(r[3] ?? "").trim(),
+            dept:     String(r[4] ?? "").trim(),
+            username: String(r[5] ?? "").trim().toLowerCase(),
+            password: String(r[6] ?? "").trim() || "1234",
+            role:     String(r[7] ?? "").trim().toLowerCase() || "requester",
+          }));
+          resolve(users);
+        } catch (err) { reject(err); }
+      };
+      reader.onerror = () => reject(new Error("อ่านไฟล์ไม่ได้"));
+      reader.readAsArrayBuffer(file);
+    }).catch(reject);
+  });
 }
 
 /* ── colour options for avatar ── */
@@ -98,6 +158,10 @@ function MembersTab({ lang, refresh }) {
   const [deleteId, setDeleteId] = React.useState(null);
   const [allUsers, setAllUsers] = React.useState([]);
   const [loadingList, setLoadingList] = React.useState(true);
+  const [importRows, setImportRows] = React.useState(null); // null = closed
+  const [importing, setImporting] = React.useState(false);
+  const [importResult, setImportResult] = React.useState(null);
+  const fileInputRef = React.useRef(null);
 
   const loadUsers = React.useCallback(() => {
     setLoadingList(true);
@@ -118,8 +182,48 @@ function MembersTab({ lang, refresh }) {
     );
   });
 
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!fileInputRef.current) return;
+    fileInputRef.current.value = "";
+    if (!file) return;
+    try {
+      const rows = await parseExcelFile(file);
+      setImportRows(rows);
+      setImportResult(null);
+    } catch (err) {
+      alert((lang === "th" ? "อ่านไฟล์ไม่ได้:\n" : "Cannot read file:\n") + err.message);
+    }
+  };
+
+  const handleImportConfirm = async () => {
+    if (!importRows || importing) return;
+    setImporting(true);
+    try {
+      const res = await apiFetch("/api/users/import", {
+        method: "POST",
+        body: JSON.stringify(importRows),
+      });
+      setImportResult(res);
+      loadUsers(); refresh();
+    } catch (err) {
+      alert((lang === "th" ? "นำเข้าไม่สำเร็จ:\n" : "Import failed:\n") + err.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls"
+        style={{ display: "none" }}
+        onChange={handleFileChange}
+      />
+
       {/* Toolbar */}
       <div className="ttm-um-toolbar">
         <span className="ttm-um-title">
@@ -127,7 +231,7 @@ function MembersTab({ lang, refresh }) {
             ? `ผู้ใช้งานทั้งหมด (${allUsers.length} คน)`
             : `All users (${allUsers.length})`}
         </span>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
           <div className="ttm-um-search-wrap">
             <Icon name="search" size={14} />
             <input
@@ -136,6 +240,23 @@ function MembersTab({ lang, refresh }) {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <button
+            className="ttm-btn ttm-btn-ghost"
+            style={{ display:"flex", alignItems:"center", gap:6 }}
+            onClick={downloadTemplate}
+            title={lang === "th" ? "ดาวน์โหลด Template Excel" : "Download Excel Template"}
+          >
+            <Icon name="download" size={15} />
+            {lang === "th" ? "Template" : "Template"}
+          </button>
+          <button
+            className="ttm-btn ttm-btn-ghost"
+            style={{ display:"flex", alignItems:"center", gap:6 }}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Icon name="upload" size={15} />
+            {lang === "th" ? "นำเข้า Excel" : "Import Excel"}
+          </button>
           <button className="ttm-btn ttm-btn-primary" style={{ display:"flex", alignItems:"center", gap:6 }}
             onClick={() => setModal({ mode:"add" })}>
             <Icon name="plus" size={15} />
@@ -244,6 +365,18 @@ function MembersTab({ lang, refresh }) {
               setDeleteId(null); loadUsers(); refresh();
             } catch (e) { alert(e.message); }
           }}
+        />
+      )}
+
+      {/* Import Preview Modal */}
+      {importRows && (
+        <ImportModal
+          lang={lang}
+          rows={importRows}
+          result={importResult}
+          importing={importing}
+          onClose={() => { setImportRows(null); setImportResult(null); }}
+          onConfirm={handleImportConfirm}
         />
       )}
     </>
@@ -420,6 +553,7 @@ function UserModal({ lang, mode, user: existing, onClose, onSave }) {
    PermissionsTab — permission matrix
    ────────────────────────────────────────────────────────────────────────── */
 function PermissionsTab({ lang, refresh }) {
+  const { refreshPermissions } = useAppData();
   const [perms, setPerms] = React.useState(null); // null = loading
   const [saved, setSaved] = React.useState(false);
 
@@ -466,10 +600,10 @@ function PermissionsTab({ lang, refresh }) {
         alert((lang === "th" ? "บันทึกไม่สำเร็จ:\n" : "Save failed:\n") + full);
         return;
       }
-      // Success — keep the "Saved!" badge visible for a clear 4 seconds so
-      // the user can't miss it, and reload from the DB to prove it persisted.
       setSaved(true);
       try { await loadPerms(); } catch (_) { /* non-fatal */ }
+      // Push updated permissions to global context so sidebar/routing reflect immediately
+      try { await refreshPermissions(); } catch (_) { /* non-fatal */ }
       setTimeout(() => setSaved(false), 4000);
     } catch (e) {
       alert((lang === "th" ? "บันทึกไม่สำเร็จ (network):\n" : "Save failed (network):\n") + e.message);
@@ -589,6 +723,135 @@ function RouteIcon({ route }) {
     notif:"log", caseSummary:"trending-up", settings:"settings", integrations:"external", users:"users",
   };
   return <Icon name={map[route] ?? "circle"} size={14} style={{ color:"var(--muted)", flexShrink:0 }} />;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   ImportModal — preview rows before confirming bulk import
+   ────────────────────────────────────────────────────────────────────────── */
+const ROLE_LABEL_SHORT = {
+  requester:"พนักงาน", approver:"ผู้อนุมัติ", it:"ทีม IT",
+  admin:"Admin", auditor:"Auditor", ticketreport:"Ticket Report",
+};
+const VALID_ROLES_SET = new Set(["requester","approver","it","admin","auditor","ticketreport"]);
+
+function ImportModal({ lang, rows, result, importing, onClose, onConfirm }) {
+  const th = lang === "th";
+  const hasError = rows.some(r => !r.nameTh || !r.username);
+
+  return (
+    <div className="ttm-modal-scrim" onClick={(e) => e.target === e.currentTarget && !importing && onClose()}>
+      <div className="ttm-modal" style={{ maxWidth: 780, width: "95vw" }}>
+        <div className="ttm-modal-head">
+          <h3>
+            <Icon name="upload" size={16} style={{ verticalAlign:"middle", marginRight:6 }} />
+            {th ? `นำเข้าผู้ใช้ (${rows.length} รายการ)` : `Import Users (${rows.length} rows)`}
+          </h3>
+          <button className="ttm-icon-btn" onClick={onClose} disabled={importing}><Icon name="x" size={18} /></button>
+        </div>
+
+        <div className="ttm-modal-body" style={{ padding: 0 }}>
+          {/* Result banner */}
+          {result && (
+            <div style={{
+              padding: "0.75rem 1.25rem",
+              background: result.failed === 0 ? "#d1fae5" : "#fef3c7",
+              borderBottom: "1px solid var(--border)",
+              fontSize: "0.875rem",
+              color: result.failed === 0 ? "#065f46" : "#92400e",
+              display: "flex", gap: 8, alignItems: "center",
+            }}>
+              <Icon name={result.failed === 0 ? "check-circle" : "alert-circle"} size={16} />
+              {th
+                ? `นำเข้าสำเร็จ ${result.succeeded} คน${result.failed > 0 ? ` · ล้มเหลว ${result.failed} คน` : ""}`
+                : `Imported ${result.succeeded} users${result.failed > 0 ? ` · ${result.failed} failed` : ""}`
+              }
+            </div>
+          )}
+
+          {/* Warning if validation errors */}
+          {hasError && !result && (
+            <div style={{
+              padding: "0.6rem 1.25rem", background: "#fef2f2",
+              borderBottom: "1px solid var(--border)", fontSize: "0.8rem", color: "#be123c",
+              display: "flex", gap: 8, alignItems: "center",
+            }}>
+              <Icon name="alert-circle" size={14} />
+              {th ? "แถวที่มีสีแดง — ขาด nameTh หรือ username (จะถูกข้ามเมื่อนำเข้า)" : "Red rows are missing nameTh or username and will be skipped"}
+            </div>
+          )}
+
+          <div style={{ overflowX: "auto", maxHeight: 380 }}>
+            <table className="ttm-um-table" style={{ minWidth: 640 }}>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>{th ? "ชื่อ (ไทย)" : "Name (TH)"}</th>
+                  <th>{th ? "ชื่อ (EN)" : "Name (EN)"}</th>
+                  <th>{th ? "แผนก" : "Dept"}</th>
+                  <th>Username</th>
+                  <th>{th ? "บทบาท" : "Role"}</th>
+                  {result && <th>{th ? "สถานะ" : "Status"}</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => {
+                  const rowError = !r.nameTh || !r.username;
+                  const badRole = r.role && !VALID_ROLES_SET.has(r.role);
+                  const rowResult = result?.results?.[i];
+                  return (
+                    <tr key={i} style={{ background: rowError ? "rgba(190,18,60,0.06)" : undefined }}>
+                      <td style={{ color: "var(--muted)", fontSize:"0.75rem" }}>{i + 1}</td>
+                      <td style={{ color: !r.nameTh ? "#be123c" : undefined, fontWeight: 600, fontSize:"0.8125rem" }}>
+                        {r.nameTh || <em style={{ opacity:0.6 }}>(empty)</em>}
+                      </td>
+                      <td style={{ fontSize:"0.8125rem", color:"var(--muted)" }}>{r.nameEn || "—"}</td>
+                      <td style={{ fontSize:"0.8125rem", color:"var(--muted)" }}>{r.dept || "—"}</td>
+                      <td style={{ fontFamily:"var(--font-mono,monospace)", fontSize:"0.8rem", color: !r.username ? "#be123c" : undefined }}>
+                        {r.username || <em style={{ opacity:0.6 }}>(empty)</em>}
+                      </td>
+                      <td>
+                        <span className={cls("ttm-role-badge", `role-${VALID_ROLES_SET.has(r.role) ? r.role : "requester"}`)}>
+                          {badRole ? r.role : (ROLE_LABEL_SHORT[r.role] ?? r.role)}
+                        </span>
+                        {badRole && <span style={{ fontSize:"0.7rem", color:"#f59e0b", marginLeft:4 }}>→ requester</span>}
+                      </td>
+                      {result && (
+                        <td>
+                          {rowResult?.ok
+                            ? <span style={{ color:"#059669", fontSize:"0.8rem" }}>✓ {rowResult.id}</span>
+                            : <span style={{ color:"#be123c", fontSize:"0.75rem" }}>{rowResult?.error ?? "skipped"}</span>
+                          }
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="ttm-modal-footer">
+          <button className="ttm-btn ttm-btn-ghost" onClick={onClose} disabled={importing}>
+            {result ? (th ? "ปิด" : "Close") : (th ? "ยกเลิก" : "Cancel")}
+          </button>
+          {!result && (
+            <button
+              className="ttm-btn ttm-btn-primary"
+              onClick={onConfirm}
+              disabled={importing || rows.every(r => !r.nameTh || !r.username)}
+              style={{ display:"flex", alignItems:"center", gap:6 }}
+            >
+              {importing
+                ? <>{th ? "กำลังนำเข้า…" : "Importing…"}</>
+                : <><Icon name="upload" size={15} />{th ? `นำเข้า ${rows.filter(r => r.nameTh && r.username).length} คน` : `Import ${rows.filter(r => r.nameTh && r.username).length} users`}</>
+              }
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ConfirmModal({ lang, message, onCancel, onConfirm }) {

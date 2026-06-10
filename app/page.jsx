@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { i18n, ROLE_PERMISSIONS } from "./lib/data";
+import { i18n } from "./lib/data";
 import { AppDataProvider, useAppData } from "./lib/AppDataContext";
 import { Icon } from "./components/Icon";
 import { cls } from "./components/Ui";
@@ -37,13 +37,6 @@ const ACCENT_PALETTES = {
   rose:   { brand: "#e11d48", brandDark: "#be123c", brandSoft: "#ffe4ec", ring: "rgba(225,29,72,0.18)" },
 };
 
-// Landing route for a role — the first menu it's actually allowed to see.
-// Locked-down roles (e.g. ticketreport) skip straight to their one page.
-function homeForRole(r) {
-  const order = ["dashboard", "caseSummary", "my", "approvals", "it", "archive", "notif", "settings", "integrations", "users", "flows"];
-  return order.find(route => ROLE_PERMISSIONS[route]?.[r] === true) || "dashboard";
-}
-
 export default function App() {
   return (
     <AppDataProvider enabled={true}>
@@ -58,6 +51,12 @@ function AppShell() {
   const tt = i18n[lang];
   const data = useAppData();
 
+  // Landing route for a role — uses live permissions from context
+  const homeForRole = React.useCallback((r) => {
+    const order = ["dashboard", "caseSummary", "my", "approvals", "it", "archive", "notif", "settings", "integrations", "users", "flows"];
+    return order.find(route => data.PERMISSIONS[route]?.[r] === true) || "dashboard";
+  }, [data.PERMISSIONS]);
+
   // ── Auth state ───────────────────────────────────────────────────────────
   const [currentUser, setCurrentUser] = React.useState(null);
   const [authChecked, setAuthChecked] = React.useState(false);
@@ -71,8 +70,6 @@ function AppShell() {
         if (user) {
           setCurrentUser(user);
           setTweak("role", user.role);
-          // Land on the first menu this role can access (locked-down roles
-          // like ticketreport can't see the default dashboard).
           setRoute(homeForRole(user.role));
         }
       })
@@ -81,12 +78,12 @@ function AppShell() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // When a user logs in, sync the role tweak so the whole app uses their role
-  const handleLogin = (user) => {
+  // When a user logs in, reload data (including permissions) then navigate
+  const handleLogin = async (user) => {
     setCurrentUser(user);
     setTweak("role", user.role);
+    await data.reload();
     setRoute(homeForRole(user.role));
-    data.reload();
   };
 
   const handleLogout = async () => {
@@ -122,10 +119,10 @@ function AppShell() {
     root.style.setProperty("--ring", a.ring);
   }, [t.theme, t.density, t.accent]);
 
-  // Route guard — check ROLE_PERMISSIONS before navigating
+  // Route guard — uses live permissions from context
   const canAccess = (r) => {
-    const perm = ROLE_PERMISSIONS[r];
-    if (!perm) return true; // sub-routes (fill, request, flowDetail…) inherit parent access
+    const perm = data.PERMISSIONS[r];
+    if (!perm) return true;
     return perm[role] === true;
   };
 

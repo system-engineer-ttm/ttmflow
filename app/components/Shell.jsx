@@ -3,11 +3,10 @@ import React from "react";
 import Image from "next/image";
 import { Icon } from "./Icon";
 import { cls, Avatar } from "./Ui";
-import { ROLE_PERMISSIONS } from "../lib/data";
 import { useAppData } from "../lib/AppDataContext";
 
 export function Sidebar({ lang, route, setRoute, role, t, onLogout, currentUser }) {
-  const { REQUESTS, FLOW_INSTANCES } = useAppData();
+  const { REQUESTS, FLOW_INSTANCES, PERMISSIONS } = useAppData();
   const reqs = REQUESTS;
   const myId = currentUser?.id;
 
@@ -52,11 +51,11 @@ export function Sidebar({ lang, route, setRoute, role, t, onLogout, currentUser 
     { id: "users",        icon: "users",       label: t.nav.users },
   ];
 
-  // Filter nav items using ROLE_PERMISSIONS — fall back to "allowed" for items not in the matrix
+  // Filter nav items using live PERMISSIONS from context — fall back to "allowed" for items not in the matrix
   const allowed = items.filter(it => {
     if (it.divider) return true;
-    const perm = ROLE_PERMISSIONS[it.id];
-    if (!perm) return true; // sub-routes not in matrix are always allowed
+    const perm = PERMISSIONS[it.id];
+    if (!perm) return true;
     return perm[role] === true;
   });
   // Drop dividers that aren't sandwiched between two real items (avoids a

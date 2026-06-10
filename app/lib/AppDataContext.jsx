@@ -21,17 +21,19 @@ export function AppDataProvider({ children, enabled = true }) {
   const [flowTemplates, setFlowTemplates] = React.useState(MockData.FLOW_TEMPLATES);
   const [flowInstances, setFlowInstances] = React.useState(MockData.FLOW_INSTANCES);
   const [usersMap, setUsersMap] = React.useState(MockData.USERS);
+  const [permissions, setPermissions] = React.useState(MockData.ROLE_PERMISSIONS);
   const [loading, setLoading] = React.useState(enabled);
 
   const reload = React.useCallback(async () => {
     setLoading(true);
-    const [forms, reqs, notifs, ft, fi, users] = await Promise.all([
+    const [forms, reqs, notifs, ft, fi, users, perms] = await Promise.all([
       safeJson("/api/forms", MockData.FORM_TEMPLATES),
       safeJson("/api/requests", MockData.REQUESTS),
       safeJson("/api/notifications", MockData.NOTIFICATIONS),
       safeJson("/api/flows/templates", MockData.FLOW_TEMPLATES),
       safeJson("/api/flows/instances", MockData.FLOW_INSTANCES),
       safeJson("/api/users", Object.values(MockData.USERS)),
+      safeJson("/api/permissions", MockData.ROLE_PERMISSIONS),
     ]);
     if (Array.isArray(forms)) setFormTemplates(forms);
     if (Array.isArray(reqs)) setRequests(reqs);
@@ -45,6 +47,7 @@ export function AppDataProvider({ children, enabled = true }) {
     } else if (users && typeof users === "object") {
       setUsersMap(users);
     }
+    if (perms && typeof perms === "object" && !Array.isArray(perms)) setPermissions(perms);
     setLoading(false);
   }, []);
 
@@ -72,6 +75,10 @@ export function AppDataProvider({ children, enabled = true }) {
     const f = await safeJson("/api/flows/instances", null);
     if (Array.isArray(f)) setFlowInstances(f);
   }, []);
+  const refreshPermissions = React.useCallback(async () => {
+    const p = await safeJson("/api/permissions", null);
+    if (p && typeof p === "object" && !Array.isArray(p)) setPermissions(p);
+  }, []);
 
   const value = {
     FORM_TEMPLATES: formTemplates,
@@ -80,6 +87,7 @@ export function AppDataProvider({ children, enabled = true }) {
     FLOW_TEMPLATES: flowTemplates,
     FLOW_INSTANCES: flowInstances,
     USERS: usersMap,
+    PERMISSIONS: permissions,
     loading,
     reload,
     refreshRequests,
@@ -87,6 +95,7 @@ export function AppDataProvider({ children, enabled = true }) {
     refreshForms,
     refreshFlowTemplates,
     refreshFlowInstances,
+    refreshPermissions,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -95,7 +104,6 @@ export function AppDataProvider({ children, enabled = true }) {
 export function useAppData() {
   const ctx = React.useContext(Ctx);
   if (!ctx) {
-    // Fallback to mock data so components can be used standalone
     return {
       FORM_TEMPLATES: MockData.FORM_TEMPLATES,
       REQUESTS: MockData.REQUESTS,
@@ -103,6 +111,7 @@ export function useAppData() {
       FLOW_TEMPLATES: MockData.FLOW_TEMPLATES,
       FLOW_INSTANCES: MockData.FLOW_INSTANCES,
       USERS: MockData.USERS,
+      PERMISSIONS: MockData.ROLE_PERMISSIONS,
       loading: false,
       reload: async () => {},
       refreshRequests: async () => {},
@@ -110,6 +119,7 @@ export function useAppData() {
       refreshForms: async () => {},
       refreshFlowTemplates: async () => {},
       refreshFlowInstances: async () => {},
+      refreshPermissions: async () => {},
     };
   }
   return ctx;

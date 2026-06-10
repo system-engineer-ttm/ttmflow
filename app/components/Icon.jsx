@@ -37,6 +37,7 @@ export function Icon({ name, size = 20, stroke = 1.75, className = "", ...rest }
     case "edit": return (<svg {...props}><path d="M11 4H4v16h16v-7"/><path d="m18.5 2.5 3 3L12 15l-4 1 1-4z"/></svg>);
     case "trash": return (<svg {...props}><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>);
     case "download": return (<svg {...props}><path d="M12 4v12M7 11l5 5 5-5M5 20h14"/></svg>);
+    case "upload":   return (<svg {...props}><path d="M12 20V8M7 13l5-5 5 5M5 4h14"/></svg>);
     case "send": return (<svg {...props}><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>);
     case "signature": return (<svg {...props}><path d="M3 18s2-1 4-1 4 3 6 3 4-3 6-3 2 1 2 1"/><path d="M5 14c2-4 4-9 6-9s1 6 3 6 2-3 4-3"/></svg>);
     case "shield-check": return (<svg {...props}><path d="M12 3 4 6v6c0 5 4 8 8 9 4-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>);
