@@ -140,6 +140,10 @@ export function RequestDetail({ lang, t, reqId, back, role, openRequest, openFlo
             <PayloadView req={req} lang={lang} />
           </Card>
 
+          {req.template === "FM-IT-01-01" && req.status === "done" && (
+            <DeliverOutputCard req={req} lang={lang} role={role} currentUser={currentUser} refreshRequests={refreshRequests} />
+          )}
+
           <Card>
             <SectionTitle title={lang === "th" ? "บันทึกกิจกรรม (Audit log)" : "Audit log"} />
             <AuditLog req={req} lang={lang} />
@@ -497,6 +501,122 @@ function PayloadView({ req, lang }) {
     );
   }
   return <div className="ttm-muted">{lang === "th" ? "ไม่มีรายละเอียดเพิ่มเติม" : "No additional payload."}</div>;
+}
+
+function DeliverOutputCard({ req, lang, role, currentUser, refreshRequests }) {
+  const { USERS } = useAppData();
+  const [editing, setEditing] = React.useState(false);
+  const [items, setItems] = React.useState(() =>
+    (req.payload?.items || []).map(label => ({ label, value: "" }))
+  );
+  const [note, setNote] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+
+  const out = req.output;
+  const deliveredBy = out ? (USERS[out.deliveredBy] || { nameTh: out.deliveredBy, nameEn: out.deliveredBy }) : null;
+
+  const submit = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await fetch(`/api/requests/${req.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          output: {
+            deliveredAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+            deliveredBy: currentUser?.id || "",
+            items,
+            note: note || undefined,
+          },
+        }),
+      });
+      await refreshRequests();
+      setEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (out) {
+    return (
+      <Card className="ttm-output-card">
+        <SectionTitle
+          title={lang === "th" ? "ผลการดำเนินงาน (Output Delivered)" : "Output Delivered"}
+          sub={lang === "th"
+            ? `ส่งมอบโดย ${lang === "th" ? deliveredBy?.nameTh : deliveredBy?.nameEn} · ${out.deliveredAt}`
+            : `Delivered by ${deliveredBy?.nameEn} · ${out.deliveredAt}`}
+        />
+        <div className="ttm-output-items">
+          {(out.items || []).map((item, i) => (
+            <div key={i} className="ttm-output-item">
+              <span className="ttm-output-label">{item.label}</span>
+              <code className="ttm-output-value">{item.value || "—"}</code>
+            </div>
+          ))}
+        </div>
+        {out.note && (
+          <div className="ttm-output-note">
+            <Icon name="info" size={14} />
+            <span>{out.note}</span>
+          </div>
+        )}
+        <div className="ttm-output-footer">
+          <Icon name="shield-check" size={14} />
+          <span>{lang === "th" ? "ข้อมูลนี้เห็นได้เฉพาะผู้เกี่ยวข้อง — อย่าส่งต่อให้บุคคลภายนอก" : "Visible to involved parties only — do not share externally"}</span>
+        </div>
+      </Card>
+    );
+  }
+
+  if (role !== "it") return null;
+
+  return (
+    <Card className="ttm-output-card is-pending">
+      <SectionTitle
+        title={lang === "th" ? "ส่งมอบผลการดำเนินงาน" : "Deliver Output"}
+        sub={lang === "th" ? "กรอก credentials / ข้อมูลที่ส่งมอบให้ผู้ขอ แล้วกด Deliver" : "Fill in credentials or details to deliver to the requester"}
+      />
+      {!editing ? (
+        <Button variant="primary" icon="send" onClick={() => setEditing(true)}>
+          {lang === "th" ? "กรอกข้อมูลส่งมอบ" : "Enter delivery details"}
+        </Button>
+      ) : (
+        <div className="ttm-output-form">
+          {items.map((item, i) => (
+            <div key={i} className="ttm-output-form-row">
+              <label className="ttm-output-form-label">{item.label}</label>
+              <input
+                className="ttm-output-form-input"
+                placeholder={lang === "th" ? "ค่าที่ส่งมอบ..." : "Delivered value..."}
+                value={item.value}
+                onChange={e => {
+                  const next = [...items];
+                  next[i] = { ...next[i], value: e.target.value };
+                  setItems(next);
+                }}
+              />
+            </div>
+          ))}
+          <div className="ttm-output-form-row">
+            <label className="ttm-output-form-label">{lang === "th" ? "หมายเหตุ" : "Note"}</label>
+            <input
+              className="ttm-output-form-input"
+              placeholder={lang === "th" ? "คำแนะนำการใช้งาน หรือรายละเอียดเพิ่มเติม..." : "Usage instructions or additional details..."}
+              value={note}
+              onChange={e => setNote(e.target.value)}
+            />
+          </div>
+          <div className="ttm-output-form-actions">
+            <Button variant="ghost" onClick={() => setEditing(false)}>{lang === "th" ? "ยกเลิก" : "Cancel"}</Button>
+            <Button variant="primary" icon="send" onClick={submit} disabled={busy}>
+              {busy ? (lang === "th" ? "กำลังบันทึก..." : "Saving...") : (lang === "th" ? "Deliver Output" : "Deliver Output")}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
 }
 
 function KV({ k, v, freeform }) {

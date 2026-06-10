@@ -623,6 +623,16 @@ export const REQUESTS = [
       { role: "เจ้าหน้าที่ IT", user: "IT002", action: "done", at: "2026-05-23 10:14", signed: true },
     ],
     payload: { items: ["VPN Account"], purpose: "ทำงานจากบ้านวันศุกร์" },
+    output: {
+      deliveredAt: "2026-05-23 10:14",
+      deliveredBy: "IT002",
+      items: [
+        { label: "VPN Account", value: "somsak.j@ttm.co.th" },
+        { label: "รหัสผ่านชั่วคราว", value: "VPN@Temp#2026" },
+        { label: "Server / Gateway", value: "vpn.ttm.co.th:1194" },
+      ],
+      note: "ติดตั้ง FortiClient แล้ว ให้เปลี่ยนรหัสผ่านทันทีหลังเข้าใช้งานครั้งแรก",
+    },
   },
   {
     id: "IT0111-260521-0136",

@@ -19,6 +19,7 @@ function rowToReq(r) {
     steps: r.steps ?? [], payload: r.payload ?? {}, links: r.links ?? {},
     rejectReason: r.reject_reason ?? "",
     autoSpawned: r.auto_spawned === true,
+    output: r.output ?? null,
     createdAt: fmtBKK(r.created_at) || r.created_at,
     updatedAt: fmtBKK(r.updated_at) || r.updated_at,
   };
@@ -55,6 +56,7 @@ export async function PUT(request, { params }) {
     if (body.links !== undefined) updates.links = body.links;
     if (body.rejectReason !== undefined) updates.reject_reason = body.rejectReason;
     if (body.priority !== undefined) updates.priority = body.priority;
+    if (body.output !== undefined) updates.output = body.output;
 
     const { data, error } = await db.from("requests")
       .update(updates).eq("id", params.id).select().single();
