@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { verifyToken, SESSION_COOKIE } from "@/lib/session";
 import { createServiceClient, hasSupabase } from "@/lib/supabase";
 import { USERS } from "@/lib/data";
+import { nextUserId } from "@/lib/userId";
 
 async function requireAdmin() {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -37,11 +38,8 @@ export async function POST(request) {
   if (hasSupabase) {
     const db = createServiceClient();
 
-    // Fetch current max numeric suffix to generate sequential IDs
-    const { count: currentCount } = await db
-      .from("users")
-      .select("id", { count: "exact", head: true });
-    let nextNum = (currentCount ?? 0) + 1;
+    // Start from the max existing USR suffix — count-based ids collide after deletes
+    let nextNum = parseInt((await nextUserId(db)).slice(3), 10);
 
     for (const row of rows) {
       const username = (row.username ?? "").trim().toLowerCase();

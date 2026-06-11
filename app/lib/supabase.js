@@ -20,5 +20,10 @@ export function createServiceClient() {
       autoRefreshToken: false,
       persistSession: false,
     },
+    global: {
+      // Next.js patches fetch with a data cache that serves stale GETs even in
+      // force-dynamic routes — opt every Supabase request out of it.
+      fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+    },
   });
 }

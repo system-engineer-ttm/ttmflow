@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { verifyToken, SESSION_COOKIE } from "@/lib/session";
 import { createServiceClient, hasSupabase } from "@/lib/supabase";
 import { USERS } from "@/lib/data";
+import { nextUserId } from "@/lib/userId";
 
 async function getRole() {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -36,8 +37,7 @@ export async function POST(request) {
 
   if (hasSupabase) {
     const db = createServiceClient();
-    const { count } = await db.from("users").select("id", { count: "exact", head: true });
-    const newId = `USR${String((count ?? 0) + 1).padStart(3, "0")}`;
+    const newId = await nextUserId(db);
     const hash = await bcrypt.hash(body.password || "1234", 10);
 
     const { data, error } = await db.from("users").insert({

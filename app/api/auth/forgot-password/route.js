@@ -23,17 +23,18 @@ export async function POST(request) {
       .maybeSingle();
 
     // Always ok=true — prevents username enumeration
+    const isDev = process.env.NODE_ENV !== "production";
     if (user) {
       await db.from("users").update({ reset_token: token, reset_expires_at: expires }).eq("id", user.id);
 
       if (hasEmail && user.email) {
-        await sendPasswordReset({ to: user.email, username: user.username, token });
-        return NextResponse.json({ ok: true, sent: true });
+        const sent = await sendPasswordReset({ to: user.email, username: user.username, token });
+        if (sent.ok) return NextResponse.json({ ok: true, sent: true });
+        console.error("forgot-password: email send failed:", sent.reason);
+        // fall through — dev gets the token, production still answers ok
       }
     }
 
-    // Dev mode: return token directly when email not configured or user has no email
-    const isDev = process.env.NODE_ENV !== "production";
     return NextResponse.json({ ok: true, ...(isDev && user && { devToken: token }) });
   }
 
