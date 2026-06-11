@@ -120,8 +120,7 @@ export function Sidebar({ lang, route, setRoute, role, t, onLogout, currentUser 
   );
 }
 
-export function Topbar({ lang, setLang, role, setRole, route, setRoute, t, currentUser: loggedInUser }) {
-  const [, setOpen] = React.useState(false);
+export function Topbar({ lang, setLang, role, setRole, route, setRoute, t, currentUser: loggedInUser, onOpenProfile }) {
   const [notifOpen, setNotifOpen] = React.useState(false);
   // Use the real logged-in user if provided, otherwise fall back to role-based demo user
   const currentUser = loggedInUser ?? {
@@ -169,7 +168,11 @@ export function Topbar({ lang, setLang, role, setRole, route, setRoute, t, curre
           </button>
           {notifOpen && <NotifPopover lang={lang} onClose={() => setNotifOpen(false)} onJump={() => { setRoute("notif"); setNotifOpen(false); }} />}
 
-          <button className="ttm-user-chip" onClick={() => setOpen(v => !v)}>
+          <button
+            className="ttm-user-chip"
+            onClick={() => onOpenProfile?.()}
+            title={lang === "th" ? "โปรไฟล์ของฉัน" : "My profile"}
+          >
             <Avatar user={currentUser} size={30} />
             <div className="ttm-user-meta">
               <div className="ttm-user-name">{lang === "th" ? currentUser.nameTh : currentUser.nameEn}</div>

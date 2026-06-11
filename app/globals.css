@@ -2617,6 +2617,8 @@ p { margin: 0; color: var(--text-2); }
 .ttm-um-action-btn:hover { background: var(--surface-2); color: var(--text); }
 .ttm-um-action-btn.danger:hover { background: #fff1f2; color: #be123c; }
 [data-theme="dark"] .ttm-um-action-btn.danger:hover { background: #3f0d1a; color: #fda4af; }
+.ttm-um-action-btn.warn:hover { background: #fffbeb; color: #d97706; }
+[data-theme="dark"] .ttm-um-action-btn.warn:hover { background: #2d1f00; color: #fbbf24; }
 .ttm-role-badge {
   display: inline-flex; align-items: center; gap: 0.25rem;
   padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 500;
@@ -2737,3 +2739,65 @@ p { margin: 0; color: var(--text-2); }
 .ttm-output-form-input { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 0.875rem; font-family: inherit; }
 .ttm-output-form-input:focus { outline: none; border-color: var(--brand); }
 .ttm-output-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Profile Modal
+   ══════════════════════════════════════════════════════════════════════════ */
+.ttm-profile-modal { max-width: 560px; width: 95vw; }
+
+.ttm-profile-tabs {
+  display: flex; gap: 4px; padding: 0 1.25rem;
+  border-bottom: 1px solid var(--border); background: var(--surface);
+}
+.ttm-profile-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0.625rem 0.875rem; border: none; background: none; cursor: pointer;
+  font-size: 0.8125rem; color: var(--muted); border-bottom: 2px solid transparent;
+  font-family: inherit; margin-bottom: -1px; transition: color 0.15s;
+}
+.ttm-profile-tab.is-active { color: var(--brand); border-bottom-color: var(--brand); font-weight: 600; }
+.ttm-profile-tab:hover:not(.is-active) { color: var(--text); }
+
+.ttm-profile-hero {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0.875rem 1rem; background: var(--surface-2); border-radius: 10px; margin-bottom: 1rem;
+}
+.ttm-profile-avatar-wrap { flex-shrink: 0; }
+
+.ttm-profile-section-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin: 1rem 0 0.5rem;
+}
+
+.ttm-profile-input-icon-wrap { position: relative; }
+.ttm-profile-input-icon-wrap > svg {
+  position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--muted); pointer-events: none;
+}
+.ttm-profile-input-icon-wrap .ttm-mf-input { padding-left: 32px; }
+
+.ttm-profile-error {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0.625rem 0.875rem; border-radius: 8px;
+  background: #fef2f2; color: #be123c; font-size: 0.8125rem;
+  margin-top: 0.5rem;
+}
+.ttm-profile-success {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; padding: 2rem 1rem;
+}
+
+/* Password strength */
+.ttm-pw-strength { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.ttm-pw-bars { display: flex; gap: 4px; }
+.ttm-pw-bar { width: 36px; height: 4px; border-radius: 2px; transition: background 0.2s; }
+
+/* Forgot password link in Login */
+.ttm-login-forgot-link {
+  background: none; border: none; cursor: pointer;
+  font-size: 0.8125rem; color: var(--brand); font-family: inherit;
+  padding: 2px 0; text-decoration: underline; text-underline-offset: 2px;
+}
+.ttm-login-forgot-link:hover { opacity: 0.75; }

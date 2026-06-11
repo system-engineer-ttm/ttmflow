@@ -21,6 +21,7 @@ import { Login } from "./components/Login";
 import { UserManagement } from "./components/UserManagement";
 import { SignatureSetup } from "./components/SignatureSetup";
 import { CaseSummary } from "./components/CaseSummary";
+import { ProfileModal } from "./components/Profile";
 
 const TWEAK_DEFAULTS = {
   lang: "th",
@@ -61,6 +62,7 @@ function AppShell() {
   const [currentUser, setCurrentUser] = React.useState(null);
   const [authChecked, setAuthChecked] = React.useState(false);
   const [editingSignature, setEditingSignature] = React.useState(false);
+  const [profileOpen, setProfileOpen] = React.useState(false);
 
   // Restore session from httpOnly cookie on mount
   React.useEffect(() => {
@@ -266,7 +268,7 @@ function AppShell() {
   else if (route === "templateBuilder")
     screen = <TemplateBuilder lang={lang} t={tt} back={() => setRouteWithReset("settings")} onSave={saveFormTemplate} />;
   else if (route === "users")
-    screen = <UserManagement lang={lang} />;
+    screen = <UserManagement lang={lang} currentUser={currentUser} />;
   else if (route === "caseSummary")
     screen = <CaseSummary lang={lang} />;
   else
@@ -296,6 +298,14 @@ function AppShell() {
           onSaved={handleSignatureSaved}
         />
       )}
+      {profileOpen && currentUser && (
+        <ProfileModal
+          lang={lang}
+          currentUser={currentUser}
+          onClose={() => setProfileOpen(false)}
+          onUpdated={(updated) => setCurrentUser(prev => prev ? { ...prev, ...updated } : prev)}
+        />
+      )}
       <Sidebar
         lang={lang} route={route} setRoute={setRouteWithReset} role={role} t={tt}
         onLogout={handleLogout}
@@ -307,6 +317,7 @@ function AppShell() {
           role={role} setRole={(v) => setTweak("role", v)}
           route={route} setRoute={setRouteWithReset} t={tt}
           currentUser={currentUser}
+          onOpenProfile={() => setProfileOpen(true)}
         />
         <main className="ttm-content" data-screen-label={route}>
           {screen}

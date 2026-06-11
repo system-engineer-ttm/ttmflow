@@ -29,6 +29,9 @@ export async function PUT(request, { params }) {
       username: (body.username ?? "").toLowerCase(),
       role: body.role ?? "requester",
       is_active: body.isActive !== false,
+      email: body.email || null, phone: body.phone || null,
+      line_id: body.lineId || null, employee_id: body.employeeId || null,
+      lang: body.lang || "th",
       updated_at: new Date().toISOString(),
     };
     if (body.password) updates.password_hash = await bcrypt.hash(body.password, 10);
@@ -40,6 +43,9 @@ export async function PUT(request, { params }) {
       titleTh: data.title_th, titleEn: data.title_en,
       dept: data.dept, avatar: data.avatar, color: data.color,
       username: data.username, role: data.role, isActive: data.is_active,
+      email: data.email || null, phone: data.phone || null,
+      lineId: data.line_id || null, employeeId: data.employee_id || null,
+      lang: data.lang || "th",
     });
   }
 

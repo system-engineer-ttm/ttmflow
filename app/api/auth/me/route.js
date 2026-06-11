@@ -21,14 +21,22 @@ export async function GET() {
       .eq("id", payload.id)
       .maybeSingle();
     if (!u) return NextResponse.json({ user: null });
+
+    // Session invalidation check: if admin force-logged-out this user after token was issued
+    if (u.force_logout_at && payload.iat && new Date(u.force_logout_at) > new Date(payload.iat * 1000))
+      return NextResponse.json({ user: null });
+
     return NextResponse.json({
       user: {
         id: u.id, nameTh: u.name_th, nameEn: u.name_en,
         titleTh: u.title_th, titleEn: u.title_en,
         dept: u.dept, avatar: u.avatar, color: u.color,
         username: u.username, role: u.role, isActive: u.is_active,
-        signature: u.signature || null,
-        hasSignature: !!u.signature,
+        signature: u.signature || null, hasSignature: !!u.signature,
+        email: u.email || null, phone: u.phone || null,
+        lineId: u.line_id || null, employeeId: u.employee_id || null,
+        lang: u.lang || "th",
+        lastLoginAt: u.last_login_at || null,
       },
     });
   }

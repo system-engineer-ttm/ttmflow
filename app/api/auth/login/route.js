@@ -30,6 +30,12 @@ export async function POST(request) {
     const token = await signToken({ id: user.id, username: user.username, role: user.role });
     const userData = dbRowToUser(user);
 
+    // Record login timestamp and IP
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || request.headers.get("x-real-ip")
+      || "unknown";
+    db.from("users").update({ last_login_at: new Date().toISOString(), last_login_ip: ip }).eq("id", user.id).then(() => {});
+
     const res = NextResponse.json({ user: userData });
     res.cookies.set(SESSION_COOKIE, token, cookieOpts());
     return res;
@@ -53,8 +59,11 @@ function dbRowToUser(u) {
     titleTh: u.title_th, titleEn: u.title_en,
     dept: u.dept, avatar: u.avatar, color: u.color,
     username: u.username, role: u.role, isActive: u.is_active,
-    signature: u.signature || null,
-    hasSignature: !!u.signature,
+    signature: u.signature || null, hasSignature: !!u.signature,
+    email: u.email || null, phone: u.phone || null,
+    lineId: u.line_id || null, employeeId: u.employee_id || null,
+    lang: u.lang || "th",
+    lastLoginAt: u.last_login_at || null,
   };
 }
 

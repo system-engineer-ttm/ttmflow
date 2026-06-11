@@ -106,6 +106,7 @@ function blankUser() {
   return {
     nameTh:"", nameEn:"", titleTh:"", titleEn:"",
     dept:"", username:"", password:"",
+    email:"", phone:"", lineId:"", employeeId:"",
     role:"requester", color: AVATAR_COLORS[0], isActive: true,
   };
 }
@@ -122,7 +123,7 @@ function initials(nameTh, nameEn) {
 /* ──────────────────────────────────────────────────────────────────────────
    UserManagement — main export
    ────────────────────────────────────────────────────────────────────────── */
-export function UserManagement({ lang }) {
+export function UserManagement({ lang, currentUser }) {
   const [tab, setTab] = React.useState("members");
   const [, forceRender] = React.useState(0);
   const refresh = () => forceRender((v) => v + 1);
@@ -142,7 +143,7 @@ export function UserManagement({ lang }) {
       </div>
 
       {tab === "members"
-        ? <MembersTab lang={lang} refresh={refresh} />
+        ? <MembersTab lang={lang} refresh={refresh} currentUser={currentUser} />
         : <PermissionsTab lang={lang} refresh={refresh} />
       }
     </div>
@@ -152,10 +153,11 @@ export function UserManagement({ lang }) {
 /* ──────────────────────────────────────────────────────────────────────────
    MembersTab
    ────────────────────────────────────────────────────────────────────────── */
-function MembersTab({ lang, refresh }) {
+function MembersTab({ lang, refresh, currentUser }) {
   const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState(null);
   const [deleteId, setDeleteId] = React.useState(null);
+  const [forceLogoutId, setForceLogoutId] = React.useState(null);
   const [allUsers, setAllUsers] = React.useState([]);
   const [loadingList, setLoadingList] = React.useState(true);
   const [importRows, setImportRows] = React.useState(null); // null = closed
@@ -310,6 +312,13 @@ function MembersTab({ lang, refresh }) {
                       onClick={() => setModal({ mode:"edit", userId: u.id })}>
                       <Icon name="edit" size={14} />
                     </button>
+                    {currentUser?.id !== u.id && (
+                      <button className="ttm-um-action-btn warn"
+                        title={lang === "th" ? "บังคับออกจากระบบ" : "Force sign out"}
+                        onClick={() => setForceLogoutId(u.id)}>
+                        <Icon name="log-out" size={14} />
+                      </button>
+                    )}
                     <button className="ttm-um-action-btn danger" title={lang === "th" ? "ลบ" : "Delete"}
                       onClick={() => setDeleteId(u.id)}>
                       <Icon name="trash" size={14} />
@@ -368,6 +377,30 @@ function MembersTab({ lang, refresh }) {
         />
       )}
 
+      {/* Force logout confirm */}
+      {forceLogoutId && (
+        <ConfirmModal
+          lang={lang}
+          icon="log-out"
+          color="#d97706"
+          title={lang === "th" ? "บังคับออกจากระบบ" : "Force sign out"}
+          message={
+            lang === "th"
+              ? `บังคับให้ "${allUsers.find(u => u.id === forceLogoutId)?.nameTh}" ออกจากระบบทันที session ปัจจุบันของเขาจะใช้งานไม่ได้`
+              : `"${allUsers.find(u => u.id === forceLogoutId)?.nameEn}" will be signed out immediately and their current session will be invalidated.`
+          }
+          confirmLabel={lang === "th" ? "บังคับออก" : "Force sign out"}
+          confirmStyle={{ background: "#d97706", color: "#fff" }}
+          onCancel={() => setForceLogoutId(null)}
+          onConfirm={async () => {
+            try {
+              await apiFetch(`/api/users/${forceLogoutId}/force-logout`, { method: "PUT" });
+              setForceLogoutId(null);
+            } catch (e) { alert(e.message); }
+          }}
+        />
+      )}
+
       {/* Import Preview Modal */}
       {importRows && (
         <ImportModal
@@ -392,7 +425,9 @@ function UserModal({ lang, mode, user: existing, onClose, onSave }) {
         titleTh: existing.titleTh ?? "", titleEn: existing.titleEn ?? "",
         dept: existing.dept ?? "", username: existing.username ?? "",
         password: "", role: existing.role ?? "requester",
-        color: existing.color ?? AVATAR_COLORS[0], isActive: existing.isActive !== false }
+        color: existing.color ?? AVATAR_COLORS[0], isActive: existing.isActive !== false,
+        email: existing.email ?? "", phone: existing.phone ?? "",
+        lineId: existing.lineId ?? "", employeeId: existing.employeeId ?? "" }
     : blankUser()
   );
   const [showPw, setShowPw] = React.useState(false);
@@ -510,6 +545,25 @@ function UserModal({ lang, mode, user: existing, onClose, onSave }) {
                 </button>
               </div>
               {errors.password && <span style={{ fontSize:"0.75rem", color:"#be123c" }}>{th ? "กรุณาระบุรหัสผ่าน" : "Required"}</span>}
+            </div>
+          </div>
+
+          {/* Contact */}
+          <div className="ttm-mf-group">
+            <label>Email {th ? "(สำหรับแจ้งเตือน)" : "(for notifications)"}</label>
+            <input className="ttm-mf-input" type="email" value={form.email}
+              onChange={(e) => set("email", e.target.value)} placeholder="name@company.com" />
+          </div>
+          <div className="ttm-mf-row">
+            <div className="ttm-mf-group">
+              <label>{th ? "เบอร์โทรศัพท์" : "Phone"}</label>
+              <input className="ttm-mf-input" value={form.phone}
+                onChange={(e) => set("phone", e.target.value)} placeholder="0812345678" />
+            </div>
+            <div className="ttm-mf-group">
+              <label>LINE ID</label>
+              <input className="ttm-mf-input" value={form.lineId}
+                onChange={(e) => set("lineId", e.target.value)} placeholder="line_id" />
             </div>
           </div>
 
@@ -854,29 +908,34 @@ function ImportModal({ lang, rows, result, importing, onClose, onConfirm }) {
   );
 }
 
-function ConfirmModal({ lang, message, onCancel, onConfirm }) {
+function ConfirmModal({
+  lang, message, onCancel, onConfirm,
+  icon = "alert-circle", color = "#be123c",
+  title, confirmLabel, confirmStyle,
+}) {
   const th = lang === "th";
+  const headTitle  = title        ?? (th ? "ยืนยันการลบ"  : "Confirm delete");
+  const btnLabel   = confirmLabel ?? (th ? "ลบออก"         : "Delete");
+  const btnStyle   = confirmStyle ?? { background: "#be123c", color: "#fff" };
   return (
     <div className="ttm-modal-scrim" onClick={(e) => e.target === e.currentTarget && onCancel()}>
       <div className="ttm-modal" style={{ maxWidth:400 }}>
         <div className="ttm-modal-head">
-          <h3 style={{ color:"#be123c" }}>
-            <Icon name="alert-circle" size={18} style={{ verticalAlign:"middle", marginRight:6 }} />
-            {th ? "ยืนยันการลบ" : "Confirm delete"}
+          <h3 style={{ color }}>
+            <Icon name={icon} size={18} style={{ verticalAlign:"middle", marginRight:6 }} />
+            {headTitle}
           </h3>
           <button className="ttm-icon-btn" onClick={onCancel}><Icon name="x" size={18} /></button>
         </div>
         <div className="ttm-modal-body">
           <p style={{ margin:0, fontSize:"0.9rem", color:"var(--text)" }}>{message}</p>
-          <p style={{ margin:0, fontSize:"0.8rem", color:"var(--muted)" }}>
+          <p style={{ margin:"0.5rem 0 0", fontSize:"0.8rem", color:"var(--muted)" }}>
             {th ? "การกระทำนี้ไม่สามารถย้อนกลับได้" : "This action cannot be undone."}
           </p>
         </div>
         <div className="ttm-modal-footer">
           <button className="ttm-btn ttm-btn-ghost" onClick={onCancel}>{th ? "ยกเลิก" : "Cancel"}</button>
-          <button className="ttm-btn" style={{ background:"#be123c", color:"#fff" }} onClick={onConfirm}>
-            {th ? "ลบออก" : "Delete"}
-          </button>
+          <button className="ttm-btn" style={btnStyle} onClick={onConfirm}>{btnLabel}</button>
         </div>
       </div>
     </div>
