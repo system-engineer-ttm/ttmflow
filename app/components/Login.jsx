@@ -215,7 +215,7 @@ function ForgotPassword({ onBack, onReset }) {
 }
 
 /* ── Reset Password ── */
-function ResetPassword({ onBack, initialToken = "" }) {
+export function ResetPassword({ onBack, initialToken = "" }) {
   const [token, setToken] = React.useState(initialToken);
   const [newPw, setNewPw] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
