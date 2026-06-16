@@ -34,7 +34,15 @@
       "Bash(pdftotext -layout \"C:\\\\Users\\\\TTM-NB-7\\\\Downloads\\\\QP-IT\\\\IT-01-การบริหารจัดการระบบสารสนเทศ\\\\FM-IT-01-01_แบบฟอร์มขอใช้ ระบบ-อุปกรณ์.pdf\" -)",
       "Bash(pdftotext -layout \"C:\\\\Users\\\\TTM-NB-7\\\\Documents\\\\TTMFlow\\\\FM-IT\\\\FM-IT-01-09_แบบฟอร์มจัดการคิวรับสายระบบโทรศัพท์.pdf\" -)",
       "Bash(pdftotext -layout \"C:\\\\Users\\\\TTM-NB-7\\\\Documents\\\\TTMFlow\\\\FM-IT\\\\FM-IT-01-10_แบบฟอร์มขอจัดการติดตั้งอุปกรณ์ไอที.pdf\" -)",
-      "Bash(pdftotext -layout \"C:\\\\Users\\\\TTM-NB-7\\\\Documents\\\\TTMFlow\\\\FM-IT\\\\FM-IT-01-11_แบบฟอร์มแจ้งซ่อมและขอความช่วยเหลือทางไอที.pdf\" -)"
+      "Bash(pdftotext -layout \"C:\\\\Users\\\\TTM-NB-7\\\\Documents\\\\TTMFlow\\\\FM-IT\\\\FM-IT-01-11_แบบฟอร์มแจ้งซ่อมและขอความช่วยเหลือทางไอที.pdf\" -)",
+      "Bash(npx vercel *)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -X POST http://localhost:3000/api/users -H 'Cookie: ttm_session=__CMDSUB_OUTPUT__' -H 'Content-Type: application/json' -d '{\"nameTh\":\"ทดสอบ ระบบ\",\"nameEn\":\"Test User\",\"titleTh\":\"QA\",\"dept\":\"IT\",\"username\":\"testqa999\",\"password\":\"test1234\",\"role\":\"requester\",\"email\":\"testqa@example.com\",\"phone\":\"0899999999\",\"lineId\":\"testqa_line\"}')",
+      "Bash(python3 -c \"import json,sys;ids=[u['id'] for u in json.load\\(sys.stdin\\)];print\\('total:',len\\(ids\\)\\);print\\(ids\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/auth/reset-password -H 'Content-Type: application/json' -d '{\"token\":\"__CMDSUB_OUTPUT__\",\"newPassword\":\"resetpw77\"}')",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -c /tmp/ttm_test_cookie2.txt -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"testqa999\",\"password\":\"resetpw77\"}')",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/auth/reset-password -H 'Content-Type: application/json' -d '{\"token\":\"__CMDSUB_OUTPUT__\",\"newPassword\":\"hack999\"}')",
+      "Bash(curl -s http://localhost:3000/api/permissions)"
     ]
   }
 }
