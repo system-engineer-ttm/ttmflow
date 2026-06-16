@@ -474,7 +474,8 @@ function UserModal({ lang, mode, user: existing, onClose, onSave, positions = []
         password: "", role: existing.role ?? "requester",
         color: existing.color ?? AVATAR_COLORS[0], isActive: existing.isActive !== false,
         email: existing.email ?? "", phone: existing.phone ?? "",
-        lineId: existing.lineId ?? "", employeeId: existing.employeeId ?? "" }
+        lineId: existing.lineId ?? "", employeeId: existing.employeeId ?? "",
+        mustChangePassword: existing.mustChangePassword === true }
     : blankUser()
   );
   const [showPw, setShowPw] = React.useState(false);
@@ -494,12 +495,11 @@ function UserModal({ lang, mode, user: existing, onClose, onSave, positions = []
 
   const handleSave = () => {
     if (!validate()) return;
-    onSave({
-      ...form,
-      username: form.username.trim().toLowerCase(),
-      // Keep existing password if blank during edit
-      password: form.password || (existing?.password ?? "1234"),
-    });
+    const payload = { ...form, username: form.username.trim().toLowerCase() };
+    // Edit mode with a blank password field = keep the current password.
+    // (Sending a value here would re-hash it and overwrite the real password.)
+    if (!form.password) delete payload.password;
+    onSave(payload);
   };
 
   const isAdd = mode === "add";
@@ -647,6 +647,27 @@ function UserModal({ lang, mode, user: existing, onClose, onSave, positions = []
               {th ? "เปิดใช้งานบัญชี (Active)" : "Account active"}
             </label>
           </div>
+
+          {/* Force password change on next login — admin only.
+              New users always must change on first login, so only shown when editing. */}
+          {isAdd ? (
+            <div className="ttm-mf-group" style={{ flexDirection:"row", alignItems:"center", gap:10 }}>
+              <input type="checkbox" id="um-mustpw" checked disabled
+                style={{ width:16, height:16, accentColor:"var(--brand)" }} />
+              <label htmlFor="um-mustpw" style={{ marginBottom:0, fontSize:"0.875rem", color:"var(--muted)" }}>
+                {th ? "ผู้ใช้ใหม่ต้องเปลี่ยนรหัสผ่านเมื่อเข้าสู่ระบบครั้งแรกเสมอ" : "New users must change password on first login"}
+              </label>
+            </div>
+          ) : (
+            <div className="ttm-mf-group" style={{ flexDirection:"row", alignItems:"center", gap:10 }}>
+              <input type="checkbox" id="um-mustpw" checked={form.mustChangePassword}
+                onChange={(e) => set("mustChangePassword", e.target.checked)}
+                style={{ width:16, height:16, accentColor:"var(--brand)", cursor:"pointer" }} />
+              <label htmlFor="um-mustpw" style={{ cursor:"pointer", marginBottom:0, fontSize:"0.875rem" }}>
+                {th ? "บังคับเปลี่ยนรหัสผ่านในการเข้าสู่ระบบครั้งถัดไป" : "Require password change on next login"}
+              </label>
+            </div>
+          )}
         </div>
 
         <div className="ttm-modal-footer">

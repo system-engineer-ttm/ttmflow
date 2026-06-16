@@ -19,7 +19,7 @@ export async function GET() {
     const db = createServiceClient();
     const { data, error } = await db
       .from("users")
-      .select("id,name_th,name_en,title_th,title_en,dept,avatar,color,username,role,is_active,signature,email,phone,line_id,employee_id,lang,last_login_at")
+      .select("id,name_th,name_en,title_th,title_en,dept,avatar,color,username,role,is_active,signature,email,phone,line_id,employee_id,lang,last_login_at,must_change_password")
       .order("id");
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data.map(toUser));
@@ -76,5 +76,6 @@ function toUser(u) {
     email: u.email || null, phone: u.phone || null,
     lineId: u.line_id || null, employeeId: u.employee_id || null,
     lang: u.lang || "th", lastLoginAt: u.last_login_at || null,
+    mustChangePassword: u.must_change_password === true,
   };
 }

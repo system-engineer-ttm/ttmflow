@@ -32,12 +32,12 @@ export async function PUT(request, { params }) {
       email: body.email || null, phone: body.phone || null,
       line_id: body.lineId || null, employee_id: body.employeeId || null,
       lang: body.lang || "th",
+      // Admin toggle: require this user to change password on next login.
+      // Setting a new password always forces it regardless of the toggle.
+      must_change_password: body.password ? true : body.mustChangePassword === true,
       updated_at: new Date().toISOString(),
     };
-    if (body.password) {
-      updates.password_hash = await bcrypt.hash(body.password, 10);
-      updates.must_change_password = true; // admin-set password → force change on next login
-    }
+    if (body.password) updates.password_hash = await bcrypt.hash(body.password, 10);
 
     const { data, error } = await db.from("users").update(updates).eq("id", params.id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -49,6 +49,7 @@ export async function PUT(request, { params }) {
       email: data.email || null, phone: data.phone || null,
       lineId: data.line_id || null, employeeId: data.employee_id || null,
       lang: data.lang || "th",
+      mustChangePassword: data.must_change_password === true,
     });
   }
 
