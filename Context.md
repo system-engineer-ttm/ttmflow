@@ -76,6 +76,8 @@ exportUsers เว้น password ว่าง; คอลัมน์ position =
 - ✅ ฟีเจอร์ Positions (table + CRUD + dropdown ใน UserManagement & Profile)
 - ✅ Import/Export template ตรงกับ schema ปัจจุบัน
 - ✅ กรอก Employee ID เองได้ + ปุ่ม Export users
+- ✅ เลขเอกสารออกตอน "กดบันทึก" เท่านั้น (ไม่จองตอนเปิดฟอร์ม → ไม่กระโดด); logic อยู่ใน `app/lib/docNumber.js` (`allocateDocNo` ใช้ตอน insert ใน POST /api/requests, `peekDocNo` ใช้ preview ไม่กินเลข), มี retry กัน PK ชน
+- ✅ login ครั้งแรกบังคับเปลี่ยนรหัส: คอลัมน์ `users.must_change_password` (ตั้ง true ตอน admin create/import/reset, เคลียร์เมื่อเปลี่ยน/รีเซ็ตรหัสเอง); หน้าจอ `ForceChangePassword` ใน Login.jsx, gate ใน page.jsx
 
 ---
 
@@ -130,3 +132,4 @@ exportUsers เว้น password ว่าง; คอลัมน์ position =
 - อย่า `npm run build` ขณะ preview dev server รันอยู่ (ใช้ `.next` ร่วมกัน → cache พัง)
 - ตาราง positions: ถ้า CREATE TABLE แต่ไม่ DISABLE RLS จะ error 42501 → `ALTER TABLE positions DISABLE ROW LEVEL SECURITY;`
 - git push: ต้อง `cd /Users/tharisma/TTMFlow` ก่อน (อย่ารันจาก `~`)
+- เลขเอกสาร: ฟอร์มที่มี counter ใน `form_templates.numbering` (Path A) ลบ request ที่บันทึกแล้ว counter จะ**ไม่ถอยกลับ** (กันเลขซ้ำ — ปกติของ doc numbering) ดังนั้นเวลาเทสต์ create+delete จะกินเลข ต้องรีเซ็ต `numbering.current` กลับเองถ้าไม่อยากให้เลข prod กระโดด
