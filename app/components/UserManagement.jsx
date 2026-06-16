@@ -13,16 +13,19 @@ async function apiFetch(path, opts = {}) {
   return json;
 }
 
-/* ── Excel template columns ── */
+/* ── Excel template columns (order matters — parser maps by position) ── */
 const IMPORT_COLUMNS = [
-  { key: "nameTh",   label: "ชื่อ-นามสกุล (ภาษาไทย)*" },
-  { key: "nameEn",   label: "Full Name (English)" },
-  { key: "titleTh",  label: "ตำแหน่ง (ภาษาไทย)" },
-  { key: "titleEn",  label: "Job Title (English)" },
-  { key: "dept",     label: "แผนก / Department" },
-  { key: "username", label: "Username*" },
-  { key: "password", label: "Password (default: 1234)" },
-  { key: "role",     label: "Role* (requester/approver/it/admin/auditor/ticketreport)" },
+  { key: "nameTh",     label: "ชื่อ-นามสกุล (ภาษาไทย)*", wch: 28 },
+  { key: "nameEn",     label: "Full Name (English)",     wch: 26 },
+  { key: "position",   label: "ตำแหน่ง / Position",        wch: 28 },
+  { key: "dept",       label: "แผนก / Department",        wch: 24 },
+  { key: "employeeId", label: "รหัสพนักงาน / Employee ID", wch: 20 },
+  { key: "email",      label: "Email",                    wch: 26 },
+  { key: "phone",      label: "เบอร์โทรศัพท์ / Phone",      wch: 16 },
+  { key: "lineId",     label: "LINE ID",                  wch: 16 },
+  { key: "username",   label: "Username*",                wch: 18 },
+  { key: "password",   label: "Password (default: 1234)", wch: 22 },
+  { key: "role",       label: "Role* (requester/approver/it/admin/auditor/ticketreport)", wch: 52 },
 ];
 
 function downloadTemplate() {
@@ -30,11 +33,10 @@ function downloadTemplate() {
   import("xlsx").then(({ utils, writeFile }) => {
     const ws = utils.aoa_to_sheet([
       IMPORT_COLUMNS.map(c => c.label),
-      ["สมชาย ใจดี", "Somchai Jaidee", "พนักงาน", "Staff", "Operations", "somchai.j", "P@ssw0rd", "requester"],
-      ["สมหญิง รักงาน", "Somying Rakngarn", "หัวหน้าทีม", "Team Lead", "IT", "somying.r", "P@ssw0rd", "it"],
+      ["สมชาย ใจดี", "Somchai Jaidee", "Call Center Agent", "Operations", "EMP-001", "somchai.j@ttm.co.th", "0812345678", "somchai.line", "somchai.j", "P@ssw0rd", "requester"],
+      ["สมหญิง รักงาน", "Somying Rakngarn", "IT Support", "IT", "EMP-002", "somying.r@ttm.co.th", "0898765432", "somying.line", "somying.r", "P@ssw0rd", "it"],
     ]);
-    // Style the header row (column widths)
-    ws["!cols"] = IMPORT_COLUMNS.map((_, i) => ({ wch: i === 7 ? 52 : 28 }));
+    ws["!cols"] = IMPORT_COLUMNS.map(c => ({ wch: c.wch }));
     const wb = utils.book_new();
     utils.book_append_sheet(wb, ws, "Users");
     writeFile(wb, "TTMFlow_User_Import_Template.xlsx");
@@ -51,17 +53,20 @@ function parseExcelFile(file) {
           const ws = wb.Sheets[wb.SheetNames[0]];
           const raw = utils.sheet_to_json(ws, { header: 1, defval: "" });
           if (raw.length < 2) { reject(new Error("ไฟล์ไม่มีข้อมูล")); return; }
-          // Use row 0 as header to map columns by position
+          // Skip header row; map remaining columns by position (IMPORT_COLUMNS order)
           const rows = raw.slice(1).filter(r => r.some(c => String(c).trim()));
           const users = rows.map(r => ({
-            nameTh:   String(r[0] ?? "").trim(),
-            nameEn:   String(r[1] ?? "").trim(),
-            titleTh:  String(r[2] ?? "").trim(),
-            titleEn:  String(r[3] ?? "").trim(),
-            dept:     String(r[4] ?? "").trim(),
-            username: String(r[5] ?? "").trim().toLowerCase(),
-            password: String(r[6] ?? "").trim() || "1234",
-            role:     String(r[7] ?? "").trim().toLowerCase() || "requester",
+            nameTh:     String(r[0]  ?? "").trim(),
+            nameEn:     String(r[1]  ?? "").trim(),
+            position:   String(r[2]  ?? "").trim(),
+            dept:       String(r[3]  ?? "").trim(),
+            employeeId: String(r[4]  ?? "").trim(),
+            email:      String(r[5]  ?? "").trim(),
+            phone:      String(r[6]  ?? "").trim(),
+            lineId:     String(r[7]  ?? "").trim(),
+            username:   String(r[8]  ?? "").trim().toLowerCase(),
+            password:   String(r[9]  ?? "").trim() || "1234",
+            role:       String(r[10] ?? "").trim().toLowerCase() || "requester",
           }));
           resolve(users);
         } catch (err) { reject(err); }
@@ -1030,13 +1035,15 @@ function ImportModal({ lang, rows, result, importing, onClose, onConfirm }) {
           )}
 
           <div style={{ overflowX: "auto", maxHeight: 380 }}>
-            <table className="ttm-um-table" style={{ minWidth: 640 }}>
+            <table className="ttm-um-table" style={{ minWidth: 820 }}>
               <thead>
                 <tr>
                   <th>#</th>
                   <th>{th ? "ชื่อ (ไทย)" : "Name (TH)"}</th>
                   <th>{th ? "ชื่อ (EN)" : "Name (EN)"}</th>
+                  <th>{th ? "ตำแหน่ง" : "Position"}</th>
                   <th>{th ? "แผนก" : "Dept"}</th>
+                  <th>Email</th>
                   <th>Username</th>
                   <th>{th ? "บทบาท" : "Role"}</th>
                   {result && <th>{th ? "สถานะ" : "Status"}</th>}
@@ -1054,7 +1061,9 @@ function ImportModal({ lang, rows, result, importing, onClose, onConfirm }) {
                         {r.nameTh || <em style={{ opacity:0.6 }}>(empty)</em>}
                       </td>
                       <td style={{ fontSize:"0.8125rem", color:"var(--muted)" }}>{r.nameEn || "—"}</td>
+                      <td style={{ fontSize:"0.8125rem", color:"var(--muted)" }}>{r.position || "—"}</td>
                       <td style={{ fontSize:"0.8125rem", color:"var(--muted)" }}>{r.dept || "—"}</td>
+                      <td style={{ fontSize:"0.8rem", color:"var(--muted)" }}>{r.email || "—"}</td>
                       <td style={{ fontFamily:"var(--font-mono,monospace)", fontSize:"0.8rem", color: !r.username ? "#be123c" : undefined }}>
                         {r.username || <em style={{ opacity:0.6 }}>(empty)</em>}
                       </td>
