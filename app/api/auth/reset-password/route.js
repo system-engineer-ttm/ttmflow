@@ -28,6 +28,7 @@ export async function POST(request) {
       reset_token: null,
       reset_expires_at: null,
       password_changed_at: new Date().toISOString(),
+      must_change_password: false,
     }).eq("id", user.id);
 
     return NextResponse.json({ ok: true });

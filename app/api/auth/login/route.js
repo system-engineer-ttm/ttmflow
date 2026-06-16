@@ -64,6 +64,7 @@ function dbRowToUser(u) {
     lineId: u.line_id || null, employeeId: u.employee_id || null,
     lang: u.lang || "th",
     lastLoginAt: u.last_login_at || null,
+    mustChangePassword: u.must_change_password === true,
   };
 }
 

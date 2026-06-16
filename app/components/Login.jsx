@@ -129,6 +129,113 @@ function LoginForm({ onLogin, onForgot }) {
   );
 }
 
+/* ── Force Change Password (first login / admin-reset) ── */
+export function ForceChangePassword({ user, lang = "th", onDone, onLogout }) {
+  const th = lang === "th";
+  const [currentPw, setCurrentPw] = React.useState("");
+  const [newPw, setNewPw] = React.useState("");
+  const [confirm, setConfirm] = React.useState("");
+  const [showPw, setShowPw] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (newPw.length < 6) { setError(th ? "รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร" : "New password must be at least 6 characters"); return; }
+    if (newPw !== confirm) { setError(th ? "รหัสผ่านใหม่ไม่ตรงกัน" : "Passwords do not match"); return; }
+    if (newPw === currentPw) { setError(th ? "รหัสผ่านใหม่ต้องต่างจากรหัสเดิม" : "New password must differ from the current one"); return; }
+    setLoading(true); setError(null);
+    try {
+      const res = await fetch("/api/users/me/password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? (th ? "เกิดข้อผิดพลาด" : "Something went wrong")); return; }
+      onDone();
+    } catch {
+      setError(th ? "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้" : "Cannot reach the server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="ttm-login-page">
+      <div className="ttm-login-card">
+        <div className="ttm-login-brand">
+          <Image src="/assets/logo.jpg" alt="Talk to Me" width={56} height={56} style={{ borderRadius: 12 }} />
+          <h1>TTMFlow</h1>
+          <p>{th ? "ตั้งรหัสผ่านใหม่ก่อนเริ่มใช้งาน" : "Set a new password before continuing"}</p>
+        </div>
+
+        <div className="ttm-login-error" style={{ background: "#fef3c7", borderColor: "#fcd34d", color: "#92400e" }}>
+          <Icon name="alert-circle" size={14} />
+          {th
+            ? `สวัสดี ${user?.nameTh || user?.username || ""} — นี่เป็นการเข้าสู่ระบบครั้งแรก กรุณาเปลี่ยนรหัสผ่านเพื่อความปลอดภัย`
+            : `Hi ${user?.nameEn || user?.username || ""} — this is your first sign-in. Please change your password for security.`}
+        </div>
+
+        <form onSubmit={handleSubmit} className="ttm-login-form">
+          <div className="ttm-login-field">
+            <label>{th ? "รหัสผ่านปัจจุบัน (ที่ได้รับ)" : "Current password (as given)"}</label>
+            <div className="ttm-login-input-wrap">
+              <Icon name="lock" size={16} />
+              <input
+                type={showPw ? "text" : "password"}
+                value={currentPw}
+                onChange={(e) => setCurrentPw(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                required
+              />
+              <button type="button" onClick={() => setShowPw((v) => !v)} tabIndex={-1}>
+                <Icon name={showPw ? "eye-off" : "eye"} size={16} />
+              </button>
+            </div>
+          </div>
+          <div className="ttm-login-field">
+            <label>{th ? "รหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)" : "New password (min 6 characters)"}</label>
+            <div className="ttm-login-input-wrap">
+              <Icon name="lock" size={16} />
+              <input
+                type={showPw ? "text" : "password"}
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+              />
+            </div>
+          </div>
+          <div className="ttm-login-field">
+            <label>{th ? "ยืนยันรหัสผ่านใหม่" : "Confirm new password"}</label>
+            <div className="ttm-login-input-wrap">
+              <Icon name="lock" size={16} />
+              <input
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+              />
+            </div>
+          </div>
+          {error && <div className="ttm-login-error"><Icon name="alert-circle" size={14} />{error}</div>}
+          <button type="submit" className="ttm-login-btn" disabled={loading}>
+            {loading ? (th ? "กำลังบันทึก…" : "Saving…") : (th ? "บันทึกรหัสผ่านใหม่และเข้าใช้งาน" : "Save & continue")}
+          </button>
+          <button type="button" className="ttm-login-forgot-link" style={{ alignSelf: "center", marginTop: 4 }} onClick={onLogout}>
+            {th ? "← ออกจากระบบ" : "← Sign out"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 /* ── Forgot Password ── */
 function ForgotPassword({ onBack, onReset }) {
   const [username, setUsername] = React.useState("");

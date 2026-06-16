@@ -53,6 +53,7 @@ export async function POST(request) {
       email: body.email || null, phone: body.phone || null,
       line_id: body.lineId || null, employee_id: body.employeeId || null,
       lang: body.lang || "th",
+      must_change_password: true, // force change on first login
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json(toUser(data));

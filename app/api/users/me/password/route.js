@@ -28,6 +28,7 @@ export async function PUT(request) {
     await db.from("users").update({
       password_hash: hash,
       password_changed_at: new Date().toISOString(),
+      must_change_password: false,
     }).eq("id", auth.id);
 
     return NextResponse.json({ ok: true });

@@ -101,6 +101,7 @@ export async function POST(request) {
           phone: (row.phone ?? "").trim() || null,
           line_id: (row.lineId ?? "").trim() || null,
           employee_id: (row.employeeId ?? "").trim() || null,
+          must_change_password: true, // force change on first login
         }).select("id,username").single();
 
         if (error) {

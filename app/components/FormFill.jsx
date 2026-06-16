@@ -2,7 +2,7 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { cls, Avatar, Badge, Button, Card, Check, Field, Input, Select, Stepper, Textarea } from "./Ui";
-import { shortFormCode, fmtBKK, todayBKK } from "../lib/data";
+import { fmtBKK, todayBKK } from "../lib/data";
 import { useAppData } from "../lib/AppDataContext";
 
 // Walk the given sections and return labels of required fields that are empty.
@@ -45,14 +45,6 @@ function collectMissingRequired(sections, sch, lang = "th") {
   };
   (sections || []).forEach(sec => walk(sec.fields, sch));
   return missing;
-}
-
-// Local fallback when the running-number API is unreachable
-function genDocNoFallback(code) {
-  const d = new Date();
-  const yymmdd = `${String(d.getFullYear()).slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-  const n = String(Math.floor(Math.random() * 9000) + 1000);
-  return `${shortFormCode(code)}-${yymmdd}-${n}`;
 }
 
 export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
@@ -100,18 +92,9 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
   const set = (k, v) => setState(s => ({ ...s, [k]: v }));
   const setItem = (k, v) => setState(s => ({ ...s, items: { ...s.items, [k]: v } }));
 
-  // Reserve a real running document number from the server when the form mounts
-  React.useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/forms/${encodeURIComponent(tmpl.code)}/next-number`, { method: "POST" })
-      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(d => { if (!cancelled && d?.docNo) setState(s => ({ ...s, docNo: d.docNo })); })
-      .catch(err => {
-        console.warn("next-number API failed, using fallback:", err);
-        if (!cancelled) setState(s => ({ ...s, docNo: genDocNoFallback(tmpl.code) }));
-      });
-    return () => { cancelled = true; };
-  }, [tmpl.code]);
+  // The running document number is no longer reserved on mount — it is
+  // allocated server-side only when the request is saved, so cancelled drafts
+  // don't burn numbers and leave gaps. state.docNo stays "" until submit.
 
   const steps = lang === "th"
     ? ["ข้อมูลผู้แจ้ง", "รายละเอียดคำขอ", "ผู้อนุมัติ", "ตรวจสอบ & ส่ง"]
@@ -138,7 +121,9 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
             <Icon name="fingerprint" size={13} />
             <span>{t.common.runningNumber}</span>
           </div>
-          <div className="ttm-form-head-docno ttm-mono">{state.docNo}</div>
+          <div className={cls("ttm-form-head-docno", state.docNo ? "ttm-mono" : "ttm-muted")} style={state.docNo ? undefined : { fontSize: "0.8rem", fontWeight: 400 }}>
+            {state.docNo || (lang === "th" ? "ออกเลขอัตโนมัติเมื่อบันทึก" : "Assigned automatically on save")}
+          </div>
         </div>
       </Card>
 
@@ -190,8 +175,8 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
           }
           setStepIdx(stepIdx + 1);
         }}>{t.common.next} <Icon name="arrow-right" size={15} /></Button>}
-        {stepIdx === 3 && <Button variant="primary" icon="send" disabled={submitting || !state.docNo} onClick={async () => {
-          if (submitting || !state.docNo) return;
+        {stepIdx === 3 && <Button variant="primary" icon="send" disabled={submitting} onClick={async () => {
+          if (submitting) return;
           setSubmitting(true);
             // Safety: filter out any "ผู้แจ้งเรื่อง / Requester" entry from the template
             // chain — that step is added by us below and would otherwise duplicate.
@@ -235,13 +220,14 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
             const reqTitleEn = hasSections
               ? tmpl.titleEn
               : (state.purpose?.slice(0, 80) || tmpl.titleEn);
-            let ok = false;
+            let savedId = null;
             try {
+              // No `id` sent — the server allocates the running number atomically
+              // at insert time so the number is only consumed on a real save.
               const res = await fetch("/api/requests", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  id: state.docNo,
                   template: tmpl.code,
                   titleTh: reqTitleTh,
                   titleEn: reqTitleEn,
@@ -252,12 +238,12 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
                   payload: state,
                 }),
               });
+              const data = await res.json().catch(() => ({}));
               if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                alert((lang === "th" ? "บันทึกไม่สำเร็จ: " : "Submit failed: ") + (err.error || res.statusText || res.status));
-                console.error("Submit failed:", res.status, err);
+                alert((lang === "th" ? "บันทึกไม่สำเร็จ: " : "Submit failed: ") + (data.error || res.statusText || res.status));
+                console.error("Submit failed:", res.status, data);
               } else {
-                ok = true;
+                savedId = data.id;
               }
             } catch (e) {
               alert((lang === "th" ? "เกิดข้อผิดพลาด: " : "Error: ") + e.message);
@@ -265,7 +251,7 @@ export function FormFill({ lang, t, code, back, onSubmitted, currentUser }) {
             } finally {
               setSubmitting(false);
             }
-            if (ok) onSubmitted(state.docNo);
+            if (savedId) onSubmitted(savedId);
           }}>{t.common.submit}</Button>}
       </div>
     </div>

@@ -17,7 +17,7 @@ import { Integrations } from "./components/Integrations";
 import { TemplateBuilder } from "./components/TemplateBuilder";
 import { FlowBuilder } from "./components/FlowBuilder";
 import { Submitted } from "./components/Submitted";
-import { Login } from "./components/Login";
+import { Login, ForceChangePassword } from "./components/Login";
 import { UserManagement } from "./components/UserManagement";
 import { SignatureSetup } from "./components/SignatureSetup";
 import { CaseSummary } from "./components/CaseSummary";
@@ -175,6 +175,18 @@ function AppShell() {
           </TweakSection>
         </TweaksPanel>
       </>
+    );
+  }
+
+  // ── Force password change on first login / after an admin reset ──────────
+  if (currentUser.mustChangePassword) {
+    return (
+      <ForceChangePassword
+        user={currentUser}
+        lang={lang}
+        onDone={() => setCurrentUser(u => ({ ...u, mustChangePassword: false }))}
+        onLogout={handleLogout}
+      />
     );
   }
 

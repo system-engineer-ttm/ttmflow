@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { verifyToken, SESSION_COOKIE } from "@/lib/session";
 import { createServiceClient, hasSupabase } from "@/lib/supabase";
 import { REQUESTS, fmtBKK } from "@/lib/data";
+import { allocateDocNo } from "@/lib/docNumber";
 
 async function getUser() {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -59,8 +60,7 @@ export async function POST(request) {
 
   if (hasSupabase) {
     const db = createServiceClient();
-    const row = {
-      id: body.id,
+    const baseRow = {
       template: body.template,
       title_th: body.titleTh ?? "",
       title_en: body.titleEn ?? "",
@@ -72,13 +72,24 @@ export async function POST(request) {
       payload: body.payload ?? {},
       links: body.links ?? {},
     };
-    const { data, error } = await db.from("requests").insert(row).select().single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json(rowToReq(data));
+
+    // Allocate the running number at save time (not on form open) so cancelled
+    // drafts never leave gaps. Retry on PK collision in case two saves race.
+    let lastError = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const id = (attempt === 0 && body.id) ? body.id : await allocateDocNo(db, body.template);
+      const { data, error } = await db.from("requests").insert({ id, ...baseRow }).select().single();
+      if (!error) return NextResponse.json(rowToReq(data));
+      lastError = error;
+      // 23505 = unique_violation (id already taken) — re-allocate and retry
+      if (error.code !== "23505") break;
+    }
+    return NextResponse.json({ error: lastError?.message ?? "insert failed" }, { status: 400 });
   }
 
+  const id = body.id || await allocateDocNo(null, body.template);
   const newReq = {
-    ...body, requester: me.id,
+    ...body, id, requester: me.id,
     createdAt: fmtBKK(),
     updatedAt: fmtBKK(),
   };

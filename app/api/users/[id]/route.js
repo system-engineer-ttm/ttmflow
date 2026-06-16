@@ -34,7 +34,10 @@ export async function PUT(request, { params }) {
       lang: body.lang || "th",
       updated_at: new Date().toISOString(),
     };
-    if (body.password) updates.password_hash = await bcrypt.hash(body.password, 10);
+    if (body.password) {
+      updates.password_hash = await bcrypt.hash(body.password, 10);
+      updates.must_change_password = true; // admin-set password → force change on next login
+    }
 
     const { data, error } = await db.from("users").update(updates).eq("id", params.id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
