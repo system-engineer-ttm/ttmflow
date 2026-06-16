@@ -86,6 +86,34 @@ exportUsers เว้น password ว่าง; คอลัมน์ position =
 
 ---
 
+## 4.5 การ Setup เครื่องใหม่ (New Machine Setup)
+
+`CLAUDE.md` + `Context.md` อยู่ใน git → clone แล้วตามมาเอง ไม่ต้องก๊อปแยก
+สิ่งที่ **ต้องทำเองทุกเครื่อง** (ไม่อยู่ใน git):
+
+1. **Clone + install**
+   ```bash
+   git clone git@github.com:system-engineer-ttm/ttmflow.git
+   cd ttmflow
+   npm install        # ต้องการ Node 22.x, npm 10.x
+   ```
+2. **สร้าง `.env.local`** — ดูคีย์ที่ต้องมีจาก `.env.local.example` (อยู่ใน repo):
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `JWT_SECRET`
+   - `RESEND_API_KEY`, `RESEND_FROM_EMAIL`
+   - `NEXT_PUBLIC_APP_URL`
+   > ค่าจริงดึงได้จาก Vercel project env vars หรือเครื่องเดิม (อย่า commit ไฟล์นี้ — อยู่ใน .gitignore)
+3. **SSH key** — สร้าง + add เข้า GitHub เพื่อ push (remote เป็น SSH)
+4. รัน `npm run dev` → http://localhost:3000
+
+ทางเลือกไม่ต้องลงเครื่อง: ใช้ web app **claude.ai/code** เชื่อม GitHub repo ตรงๆ
+
+**Workflow ข้ามเครื่อง:** เครื่อง A `commit + push` (+ อัปเดต Context.md) → เครื่อง B `git pull` แล้วทำงานต่อ
+
+---
+
 ## 5. ข้อมูลสภาพแวดล้อม (Environment)
 - Git remote: `git@github.com:system-engineer-ttm/ttmflow.git` (SSH)
 - Git user: Samathi / sys.en.ttm@gmail.com
