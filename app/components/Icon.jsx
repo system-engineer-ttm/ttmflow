@@ -62,6 +62,7 @@ export function Icon({ name, size = 20, stroke = 1.75, className = "", ...rest }
     case "eye-off": return (<svg {...props}><path d="M17.9 17.9A10.9 10.9 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.1-6.1M9.9 4.2A10 10 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.1 3.3M1 1l22 22"/><circle cx="12" cy="12" r="3"/></svg>);
     case "alert-circle": return (<svg {...props}><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>);
     case "log-out": return (<svg {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>);
+    case "briefcase": return (<svg {...props}><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/></svg>);
     default: return (<svg {...props}><rect x="4" y="4" width="16" height="16" rx="2"/></svg>);
   }
 }

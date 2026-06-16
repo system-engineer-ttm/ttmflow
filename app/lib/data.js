@@ -377,6 +377,33 @@ export const USERS = {
   FIN001: { id: "FIN001", nameTh: "อรพรรณ บุญรอด",      nameEn: "Orapan Boonrod",         titleTh: "Finance Manager",                        titleEn: "Finance Manager",                        dept: "Finance",                   avatar: "OB", color: "#059669", username: "fin001", password: "1234", role: "approver",  isActive: true },
 };
 
+// Job positions — admin-managed via User Management. Mutable for mock fallback.
+export const POSITIONS = [
+  { id: "POS001", nameTh: "General manager",                                          nameEn: "General manager",                          sortOrder: 1 },
+  { id: "POS002", nameTh: "Managing Director",                                        nameEn: "Managing Director",                        sortOrder: 2 },
+  { id: "POS003", nameTh: "Assistant Vice President",                                 nameEn: "Assistant Vice President",                 sortOrder: 3 },
+  { id: "POS004", nameTh: "Call Center",                                              nameEn: "Call Center",                              sortOrder: 4 },
+  { id: "POS005", nameTh: "Helpdesk Engineer",                                        nameEn: "Helpdesk Engineer",                        sortOrder: 5 },
+  { id: "POS006", nameTh: "Manager",                                                  nameEn: "Manager",                                  sortOrder: 6 },
+  { id: "POS007", nameTh: "Sr. Helpdesk Engineer",                                    nameEn: "Sr. Helpdesk Engineer",                    sortOrder: 7 },
+  { id: "POS008", nameTh: "Senior HR Supervisor",                                     nameEn: "Senior HR Supervisor",                     sortOrder: 8 },
+  { id: "POS009", nameTh: "Team Leader",                                              nameEn: "Team Leader",                              sortOrder: 9 },
+  { id: "POS010", nameTh: "Senior Team Leader",                                       nameEn: "Senior Team Leader",                       sortOrder: 10 },
+  { id: "POS011", nameTh: "Head Shift Helpdesk Engineer",                             nameEn: "Head Shift Helpdesk Engineer",             sortOrder: 11 },
+  { id: "POS012", nameTh: "Quality Assurance",                                        nameEn: "Quality Assurance",                        sortOrder: 12 },
+  { id: "POS013", nameTh: "Project Coordinator",                                      nameEn: "Project Coordinator",                      sortOrder: 13 },
+  { id: "POS014", nameTh: "Helpdesk Trainee",                                         nameEn: "Helpdesk Trainee",                         sortOrder: 14 },
+  { id: "POS015", nameTh: "Call Center Agent",                                        nameEn: "Call Center Agent",                        sortOrder: 15 },
+  { id: "POS016", nameTh: "Sale Coordinator",                                         nameEn: "Sale Coordinator",                         sortOrder: 16 },
+  { id: "POS017", nameTh: "Assistant Manager&PA",                                     nameEn: "Assistant Manager&PA",                     sortOrder: 17 },
+  { id: "POS018", nameTh: "IT Support",                                               nameEn: "IT Support",                               sortOrder: 18 },
+  { id: "POS019", nameTh: "Chauffeur",                                                nameEn: "Chauffeur",                                sortOrder: 19 },
+  { id: "POS020", nameTh: "เจ้าหน้าที่ ฝ่ายทรัพยากรบุคคล และสื่อสารองค์กร",          nameEn: "เจ้าหน้าที่ ฝ่ายทรัพยากรบุคคล และสื่อสารองค์กร", sortOrder: 20 },
+  { id: "POS021", nameTh: "IT Helpdesk",                                              nameEn: "IT Helpdesk",                              sortOrder: 21 },
+  { id: "POS022", nameTh: "Engineer Support",                                         nameEn: "Engineer Support",                         sortOrder: 22 },
+  { id: "POS023", nameTh: "Senior System Engineer",                                   nameEn: "Senior System Engineer",                   sortOrder: 23 },
+];
+
 // Per-menu access control. Mutable so Admin can edit via the UI.
 // "ticketreport" is a locked-down role: it can ONLY see Service Ticket Summary.
 export const ROLE_PERMISSIONS = {

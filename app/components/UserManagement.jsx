@@ -128,6 +128,13 @@ export function UserManagement({ lang, currentUser }) {
   const [, forceRender] = React.useState(0);
   const refresh = () => forceRender((v) => v + 1);
 
+  // Positions are shared between the member form (dropdown) and the Positions tab
+  const [positions, setPositions] = React.useState([]);
+  const loadPositions = React.useCallback(() => {
+    return apiFetch("/api/positions").then(setPositions).catch(() => {});
+  }, []);
+  React.useEffect(() => { loadPositions(); }, [loadPositions]);
+
   return (
     <div className="ttm-um-page">
       {/* Tab bar */}
@@ -136,16 +143,19 @@ export function UserManagement({ lang, currentUser }) {
           <Icon name="users" size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
           {lang === "th" ? "สมาชิก" : "Members"}
         </button>
+        <button className={cls("ttm-um-tab", tab === "positions" && "is-active")} onClick={() => setTab("positions")}>
+          <Icon name="briefcase" size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
+          {lang === "th" ? "ตำแหน่งงาน" : "Positions"}
+        </button>
         <button className={cls("ttm-um-tab", tab === "permissions" && "is-active")} onClick={() => setTab("permissions")}>
           <Icon name="shield-check" size={14} style={{ verticalAlign: "middle", marginRight: 6 }} />
           {lang === "th" ? "สิทธิ์การเข้าถึงเมนู" : "Menu Permissions"}
         </button>
       </div>
 
-      {tab === "members"
-        ? <MembersTab lang={lang} refresh={refresh} currentUser={currentUser} />
-        : <PermissionsTab lang={lang} refresh={refresh} />
-      }
+      {tab === "members" && <MembersTab lang={lang} refresh={refresh} currentUser={currentUser} positions={positions} />}
+      {tab === "positions" && <PositionsTab lang={lang} positions={positions} reload={loadPositions} />}
+      {tab === "permissions" && <PermissionsTab lang={lang} refresh={refresh} />}
     </div>
   );
 }
@@ -153,7 +163,7 @@ export function UserManagement({ lang, currentUser }) {
 /* ──────────────────────────────────────────────────────────────────────────
    MembersTab
    ────────────────────────────────────────────────────────────────────────── */
-function MembersTab({ lang, refresh, currentUser }) {
+function MembersTab({ lang, refresh, currentUser, positions }) {
   const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState(null);
   const [deleteId, setDeleteId] = React.useState(null);
@@ -343,6 +353,7 @@ function MembersTab({ lang, refresh, currentUser }) {
         <UserModal
           lang={lang}
           mode={modal.mode}
+          positions={positions}
           user={modal.mode === "edit" ? allUsers.find(u => u.id === modal.userId) : null}
           onClose={() => setModal(null)}
           onSave={async (data) => {
@@ -419,7 +430,7 @@ function MembersTab({ lang, refresh, currentUser }) {
 /* ──────────────────────────────────────────────────────────────────────────
    UserModal — Add / Edit
    ────────────────────────────────────────────────────────────────────────── */
-function UserModal({ lang, mode, user: existing, onClose, onSave }) {
+function UserModal({ lang, mode, user: existing, onClose, onSave, positions = [] }) {
   const [form, setForm] = React.useState(existing
     ? { nameTh: existing.nameTh ?? "", nameEn: existing.nameEn ?? "",
         titleTh: existing.titleTh ?? "", titleEn: existing.titleEn ?? "",
@@ -495,16 +506,19 @@ function UserModal({ lang, mode, user: existing, onClose, onSave }) {
             </div>
           </div>
 
-          {/* Title row */}
-          <div className="ttm-mf-row">
-            <div className="ttm-mf-group">
-              <label>{th ? "ตำแหน่ง (ภาษาไทย)" : "Job title (Thai)"}</label>
-              <input className="ttm-mf-input" value={form.titleTh} onChange={(e) => set("titleTh", e.target.value)} placeholder="ตำแหน่งงาน" />
-            </div>
-            <div className="ttm-mf-group">
-              <label>{th ? "ตำแหน่ง (English)" : "Job title (English)"}</label>
-              <input className="ttm-mf-input" value={form.titleEn} onChange={(e) => set("titleEn", e.target.value)} placeholder="Job Title" />
-            </div>
+          {/* Position dropdown — managed in the Positions tab */}
+          <div className="ttm-mf-group">
+            <label>{th ? "ตำแหน่งงาน" : "Position"}</label>
+            <PositionSelect
+              lang={lang}
+              positions={positions}
+              titleTh={form.titleTh}
+              titleEn={form.titleEn}
+              onChange={(p) => {
+                if (!p) { setForm((f) => ({ ...f, titleTh: "", titleEn: "" })); return; }
+                setForm((f) => ({ ...f, titleTh: p.nameTh, titleEn: p.nameEn }));
+              }}
+            />
           </div>
 
           {/* Dept + Role */}
@@ -596,6 +610,222 @@ function UserModal({ lang, mode, user: existing, onClose, onSave }) {
           <button className="ttm-btn ttm-btn-ghost" onClick={onClose}>{th ? "ยกเลิก" : "Cancel"}</button>
           <button className="ttm-btn ttm-btn-primary" onClick={handleSave}>
             {isAdd ? (th ? "เพิ่มผู้ใช้" : "Add user") : (th ? "บันทึก" : "Save changes")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   PositionSelect — dropdown bound to a user's titleTh/titleEn
+   ────────────────────────────────────────────────────────────────────────── */
+function PositionSelect({ lang, positions, titleTh, titleEn, onChange }) {
+  const th = lang === "th";
+  // Match the user's current title against the managed list
+  const current = positions.find((p) => p.nameTh === titleTh && p.nameEn === titleEn);
+  const hasLegacy = !current && (titleTh || titleEn); // legacy free-text not in list
+  const value = current ? current.id : (hasLegacy ? "__legacy__" : "");
+
+  return (
+    <select
+      className="ttm-mf-select"
+      value={value}
+      onChange={(e) => {
+        const v = e.target.value;
+        if (v === "") onChange(null);
+        else if (v === "__legacy__") { /* keep current legacy value */ }
+        else onChange(positions.find((p) => p.id === v) ?? null);
+      }}
+    >
+      <option value="">{th ? "— ไม่ระบุตำแหน่ง —" : "— No position —"}</option>
+      {hasLegacy && (
+        <option value="__legacy__">
+          {(th ? titleTh : titleEn) || titleTh || titleEn} {th ? "(เดิม)" : "(current)"}
+        </option>
+      )}
+      {positions.map((p) => (
+        <option key={p.id} value={p.id}>
+          {th ? (p.nameTh || p.nameEn) : (p.nameEn || p.nameTh)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   PositionsTab — admin CRUD for job positions
+   ────────────────────────────────────────────────────────────────────────── */
+function PositionsTab({ lang, positions, reload }) {
+  const th = lang === "th";
+  const [modal, setModal] = React.useState(null);     // { mode, position }
+  const [deleteItem, setDeleteItem] = React.useState(null);
+  const [search, setSearch] = React.useState("");
+
+  const filtered = positions.filter((p) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (p.nameTh ?? "").toLowerCase().includes(q) || (p.nameEn ?? "").toLowerCase().includes(q);
+  });
+
+  return (
+    <>
+      {/* Toolbar */}
+      <div className="ttm-um-toolbar">
+        <span className="ttm-um-title">
+          {th ? `ตำแหน่งงานทั้งหมด (${positions.length})` : `All positions (${positions.length})`}
+        </span>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
+          <div className="ttm-um-search-wrap">
+            <Icon name="search" size={14} />
+            <input
+              placeholder={th ? "ค้นหาตำแหน่ง…" : "Search positions…"}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <button className="ttm-btn ttm-btn-primary" style={{ display: "flex", alignItems: "center", gap: 6 }}
+            onClick={() => setModal({ mode: "add" })}>
+            <Icon name="plus" size={15} />
+            {th ? "เพิ่มตำแหน่ง" : "Add position"}
+          </button>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="ttm-card" style={{ overflow: "auto", padding: 0 }}>
+        <table className="ttm-um-table">
+          <thead>
+            <tr>
+              <th style={{ width: 80 }}>#</th>
+              <th>{th ? "ชื่อตำแหน่ง (ไทย)" : "Position (Thai)"}</th>
+              <th>{th ? "ชื่อตำแหน่ง (English)" : "Position (English)"}</th>
+              <th style={{ width: 100 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((p, i) => (
+              <tr key={p.id}>
+                <td style={{ color: "var(--muted)", fontSize: "0.8125rem" }}>{i + 1}</td>
+                <td style={{ fontWeight: 600, fontSize: "0.875rem" }}>{p.nameTh || "—"}</td>
+                <td style={{ fontSize: "0.8125rem", color: "var(--muted)" }}>{p.nameEn || "—"}</td>
+                <td>
+                  <div className="ttm-um-actions">
+                    <button className="ttm-um-action-btn" title={th ? "แก้ไข" : "Edit"}
+                      onClick={() => setModal({ mode: "edit", position: p })}>
+                      <Icon name="edit" size={14} />
+                    </button>
+                    <button className="ttm-um-action-btn danger" title={th ? "ลบ" : "Delete"}
+                      onClick={() => setDeleteItem(p)}>
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={4} style={{ textAlign: "center", color: "var(--muted)", padding: "2rem" }}>
+                  {th ? "ไม่พบตำแหน่งงาน" : "No positions found"}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Add / Edit modal */}
+      {modal && (
+        <PositionModal
+          lang={lang}
+          mode={modal.mode}
+          position={modal.position}
+          onClose={() => setModal(null)}
+          onSave={async (data) => {
+            try {
+              if (modal.mode === "add") {
+                await apiFetch("/api/positions", { method: "POST", body: JSON.stringify(data) });
+              } else {
+                await apiFetch(`/api/positions/${modal.position.id}`, { method: "PUT", body: JSON.stringify(data) });
+              }
+              await reload(); setModal(null);
+            } catch (e) { alert(e.message); }
+          }}
+        />
+      )}
+
+      {/* Delete confirm */}
+      {deleteItem && (
+        <ConfirmModal
+          lang={lang}
+          title={th ? "ยืนยันการลบตำแหน่ง" : "Confirm delete position"}
+          message={
+            th
+              ? `ต้องการลบตำแหน่ง "${deleteItem.nameTh}" หรือไม่? ผู้ใช้ที่มีตำแหน่งนี้อยู่จะยังคงข้อมูลเดิมไว้`
+              : `Delete position "${deleteItem.nameEn || deleteItem.nameTh}"? Users with this title keep their existing value.`
+          }
+          onCancel={() => setDeleteItem(null)}
+          onConfirm={async () => {
+            try {
+              await apiFetch(`/api/positions/${deleteItem.id}`, { method: "DELETE" });
+              setDeleteItem(null); await reload();
+            } catch (e) { alert(e.message); }
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/* ── Add / Edit position modal ── */
+function PositionModal({ lang, mode, position, onClose, onSave }) {
+  const th = lang === "th";
+  const [form, setForm] = React.useState({
+    nameTh: position?.nameTh ?? "",
+    nameEn: position?.nameEn ?? "",
+  });
+  const [error, setError] = React.useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const isAdd = mode === "add";
+
+  const handleSave = () => {
+    if (!form.nameTh.trim() && !form.nameEn.trim()) { setError(true); return; }
+    onSave({ nameTh: form.nameTh.trim(), nameEn: form.nameEn.trim() });
+  };
+
+  return (
+    <div className="ttm-modal-scrim" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="ttm-modal" style={{ maxWidth: 440 }}>
+        <div className="ttm-modal-head">
+          <h3>
+            <Icon name="briefcase" size={16} style={{ verticalAlign: "middle", marginRight: 6 }} />
+            {isAdd ? (th ? "เพิ่มตำแหน่งงาน" : "Add position") : (th ? "แก้ไขตำแหน่งงาน" : "Edit position")}
+          </h3>
+          <button className="ttm-icon-btn" onClick={onClose}><Icon name="x" size={18} /></button>
+        </div>
+        <div className="ttm-modal-body">
+          <div className="ttm-mf-group">
+            <label>{th ? "ชื่อตำแหน่ง (ภาษาไทย)" : "Position name (Thai)"}</label>
+            <input className={cls("ttm-mf-input", error && "is-error")}
+              value={form.nameTh} onChange={(e) => { set("nameTh", e.target.value); setError(false); }}
+              placeholder={th ? "เช่น Call Center Agent" : "e.g. Call Center Agent"} autoFocus />
+          </div>
+          <div className="ttm-mf-group">
+            <label>{th ? "ชื่อตำแหน่ง (English)" : "Position name (English)"}</label>
+            <input className={cls("ttm-mf-input", error && "is-error")}
+              value={form.nameEn} onChange={(e) => { set("nameEn", e.target.value); setError(false); }}
+              placeholder="e.g. Call Center Agent" />
+          </div>
+          {error && (
+            <span style={{ fontSize: "0.75rem", color: "#be123c" }}>
+              {th ? "กรุณาระบุชื่อตำแหน่งอย่างน้อย 1 ภาษา" : "Enter a name in at least one language"}
+            </span>
+          )}
+        </div>
+        <div className="ttm-modal-footer">
+          <button className="ttm-btn ttm-btn-ghost" onClick={onClose}>{th ? "ยกเลิก" : "Cancel"}</button>
+          <button className="ttm-btn ttm-btn-primary" onClick={handleSave}>
+            {isAdd ? (th ? "เพิ่ม" : "Add") : (th ? "บันทึก" : "Save")}
           </button>
         </div>
       </div>
