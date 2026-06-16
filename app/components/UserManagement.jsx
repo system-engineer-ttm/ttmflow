@@ -3,6 +3,7 @@ import React from "react";
 import { Icon } from "./Icon";
 import { Avatar, cls } from "./Ui";
 import { useAppData } from "../lib/AppDataContext";
+import { PositionSelect } from "./PositionSelect";
 
 /* ── API helpers ── */
 async function apiFetch(path, opts = {}) {
@@ -614,42 +615,6 @@ function UserModal({ lang, mode, user: existing, onClose, onSave, positions = []
         </div>
       </div>
     </div>
-  );
-}
-
-/* ──────────────────────────────────────────────────────────────────────────
-   PositionSelect — dropdown bound to a user's titleTh/titleEn
-   ────────────────────────────────────────────────────────────────────────── */
-function PositionSelect({ lang, positions, titleTh, titleEn, onChange }) {
-  const th = lang === "th";
-  // Match the user's current title against the managed list
-  const current = positions.find((p) => p.nameTh === titleTh && p.nameEn === titleEn);
-  const hasLegacy = !current && (titleTh || titleEn); // legacy free-text not in list
-  const value = current ? current.id : (hasLegacy ? "__legacy__" : "");
-
-  return (
-    <select
-      className="ttm-mf-select"
-      value={value}
-      onChange={(e) => {
-        const v = e.target.value;
-        if (v === "") onChange(null);
-        else if (v === "__legacy__") { /* keep current legacy value */ }
-        else onChange(positions.find((p) => p.id === v) ?? null);
-      }}
-    >
-      <option value="">{th ? "— ไม่ระบุตำแหน่ง —" : "— No position —"}</option>
-      {hasLegacy && (
-        <option value="__legacy__">
-          {(th ? titleTh : titleEn) || titleTh || titleEn} {th ? "(เดิม)" : "(current)"}
-        </option>
-      )}
-      {positions.map((p) => (
-        <option key={p.id} value={p.id}>
-          {th ? (p.nameTh || p.nameEn) : (p.nameEn || p.nameTh)}
-        </option>
-      ))}
-    </select>
   );
 }
 

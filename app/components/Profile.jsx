@@ -2,6 +2,7 @@
 import React from "react";
 import { Icon } from "./Icon";
 import { Avatar, cls } from "./Ui";
+import { PositionSelect } from "./PositionSelect";
 
 const AVATAR_COLORS = [
   "#3b82f6","#a855f7","#f59e0b","#0ea5e9","#10b981",
@@ -77,6 +78,11 @@ function InfoTab({ lang, currentUser, onClose, onUpdated }) {
   const [saving, setSaving] = React.useState(false);
   const [saved,  setSaved]  = React.useState(false);
   const [error,  setError]  = React.useState(null);
+  const [positions, setPositions] = React.useState([]);
+
+  React.useEffect(() => {
+    apiFetch("/api/positions").then(setPositions).catch(() => {});
+  }, []);
 
   const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setSaved(false); };
 
@@ -136,15 +142,18 @@ function InfoTab({ lang, currentUser, onClose, onUpdated }) {
           </div>
         </div>
 
-        <div className="ttm-mf-row">
-          <div className="ttm-mf-group">
-            <label>{th ? "ตำแหน่ง (ภาษาไทย)" : "Job title (Thai)"}</label>
-            <input className="ttm-mf-input" value={form.titleTh} onChange={e => set("titleTh", e.target.value)} />
-          </div>
-          <div className="ttm-mf-group">
-            <label>{th ? "ตำแหน่ง (English)" : "Job title (English)"}</label>
-            <input className="ttm-mf-input" value={form.titleEn} onChange={e => set("titleEn", e.target.value)} />
-          </div>
+        <div className="ttm-mf-group">
+          <label>{th ? "ตำแหน่งงาน" : "Position"}</label>
+          <PositionSelect
+            lang={lang}
+            positions={positions}
+            titleTh={form.titleTh}
+            titleEn={form.titleEn}
+            onChange={(p) => {
+              if (!p) { setForm(f => ({ ...f, titleTh: "", titleEn: "" })); setSaved(false); return; }
+              setForm(f => ({ ...f, titleTh: p.nameTh, titleEn: p.nameEn })); setSaved(false);
+            }}
+          />
         </div>
 
         <div className="ttm-mf-row">
