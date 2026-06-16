@@ -42,14 +42,6 @@ function LoginForm({ onLogin, onForgot }) {
     }
   };
 
-  const demoAccounts = [
-    { u: "req001", label: "Employee (Requester)" },
-    { u: "app001", label: "Approver" },
-    { u: "it001",  label: "IT Staff" },
-    { u: "adm001", label: "Admin / QMR" },
-    { u: "aud001", label: "Auditor" },
-  ];
-
   return (
     <div className="ttm-login-page">
       <div className="ttm-login-card">
@@ -67,7 +59,7 @@ function LoginForm({ onLogin, onForgot }) {
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="เช่น req001, adm001"
+                placeholder="username"
                 autoComplete="username"
                 required
               />
@@ -108,22 +100,6 @@ function LoginForm({ onLogin, onForgot }) {
             {loading ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ / Sign in"}
           </button>
         </form>
-
-        <div className="ttm-login-hint">
-          <strong>Demo accounts (รหัสผ่านทุกบัญชี: 1234)</strong>
-          <table>
-            <tbody>
-              {demoAccounts.map((a) => (
-                <tr key={a.u}>
-                  <td style={{ cursor: "pointer" }} onClick={() => { setUsername(a.u); setPassword("1234"); }}>
-                    {a.u}
-                  </td>
-                  <td>→ {a.label}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   );
