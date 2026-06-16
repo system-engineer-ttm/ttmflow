@@ -43,6 +43,27 @@ function downloadTemplate() {
   });
 }
 
+/* Export current users to an Excel file matching the import template layout
+   (so it can be edited and re-imported). Password is left blank — hashes are
+   never exported; a blank password on re-import defaults to 1234. */
+function exportUsers(users) {
+  import("xlsx").then(({ utils, writeFile }) => {
+    const header = IMPORT_COLUMNS.map(c => c.label);
+    const body = (users ?? []).map(u => IMPORT_COLUMNS.map(c => {
+      switch (c.key) {
+        case "position": return u.titleEn || u.titleTh || "";
+        case "password": return ""; // never export password
+        default:         return u[c.key] ?? "";
+      }
+    }));
+    const ws = utils.aoa_to_sheet([header, ...body]);
+    ws["!cols"] = IMPORT_COLUMNS.map(c => ({ wch: c.wch }));
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, "Users");
+    writeFile(wb, `TTMFlow_Users_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  });
+}
+
 function parseExcelFile(file) {
   return new Promise((resolve, reject) => {
     import("xlsx").then(({ read, utils }) => {
@@ -266,6 +287,15 @@ function MembersTab({ lang, refresh, currentUser, positions }) {
           >
             <Icon name="download" size={15} />
             {lang === "th" ? "Template" : "Template"}
+          </button>
+          <button
+            className="ttm-btn ttm-btn-ghost"
+            style={{ display:"flex", alignItems:"center", gap:6 }}
+            onClick={() => exportUsers(allUsers)}
+            title={lang === "th" ? "ส่งออกผู้ใช้งานเป็น Excel" : "Export users to Excel"}
+          >
+            <Icon name="download" size={15} />
+            {lang === "th" ? "ส่งออก" : "Export"}
           </button>
           <button
             className="ttm-btn ttm-btn-ghost"
@@ -512,19 +542,26 @@ function UserModal({ lang, mode, user: existing, onClose, onSave, positions = []
             </div>
           </div>
 
-          {/* Position dropdown — managed in the Positions tab */}
-          <div className="ttm-mf-group">
-            <label>{th ? "ตำแหน่งงาน" : "Position"}</label>
-            <PositionSelect
-              lang={lang}
-              positions={positions}
-              titleTh={form.titleTh}
-              titleEn={form.titleEn}
-              onChange={(p) => {
-                if (!p) { setForm((f) => ({ ...f, titleTh: "", titleEn: "" })); return; }
-                setForm((f) => ({ ...f, titleTh: p.nameTh, titleEn: p.nameEn }));
-              }}
-            />
+          {/* Position dropdown (managed in the Positions tab) + Employee ID */}
+          <div className="ttm-mf-row">
+            <div className="ttm-mf-group">
+              <label>{th ? "ตำแหน่งงาน" : "Position"}</label>
+              <PositionSelect
+                lang={lang}
+                positions={positions}
+                titleTh={form.titleTh}
+                titleEn={form.titleEn}
+                onChange={(p) => {
+                  if (!p) { setForm((f) => ({ ...f, titleTh: "", titleEn: "" })); return; }
+                  setForm((f) => ({ ...f, titleTh: p.nameTh, titleEn: p.nameEn }));
+                }}
+              />
+            </div>
+            <div className="ttm-mf-group">
+              <label>{th ? "รหัสพนักงาน" : "Employee ID"}</label>
+              <input className="ttm-mf-input" value={form.employeeId}
+                onChange={(e) => set("employeeId", e.target.value)} placeholder="EMP-001" />
+            </div>
           </div>
 
           {/* Dept + Role */}
@@ -1035,7 +1072,7 @@ function ImportModal({ lang, rows, result, importing, onClose, onConfirm }) {
           )}
 
           <div style={{ overflowX: "auto", maxHeight: 380 }}>
-            <table className="ttm-um-table" style={{ minWidth: 820 }}>
+            <table className="ttm-um-table" style={{ minWidth: 920 }}>
               <thead>
                 <tr>
                   <th>#</th>
@@ -1043,6 +1080,7 @@ function ImportModal({ lang, rows, result, importing, onClose, onConfirm }) {
                   <th>{th ? "ชื่อ (EN)" : "Name (EN)"}</th>
                   <th>{th ? "ตำแหน่ง" : "Position"}</th>
                   <th>{th ? "แผนก" : "Dept"}</th>
+                  <th>{th ? "รหัสพนักงาน" : "Emp. ID"}</th>
                   <th>Email</th>
                   <th>Username</th>
                   <th>{th ? "บทบาท" : "Role"}</th>
@@ -1063,6 +1101,7 @@ function ImportModal({ lang, rows, result, importing, onClose, onConfirm }) {
                       <td style={{ fontSize:"0.8125rem", color:"var(--muted)" }}>{r.nameEn || "—"}</td>
                       <td style={{ fontSize:"0.8125rem", color:"var(--muted)" }}>{r.position || "—"}</td>
                       <td style={{ fontSize:"0.8125rem", color:"var(--muted)" }}>{r.dept || "—"}</td>
+                      <td style={{ fontSize:"0.8rem", color:"var(--muted)" }}>{r.employeeId || "—"}</td>
                       <td style={{ fontSize:"0.8rem", color:"var(--muted)" }}>{r.email || "—"}</td>
                       <td style={{ fontFamily:"var(--font-mono,monospace)", fontSize:"0.8rem", color: !r.username ? "#be123c" : undefined }}>
                         {r.username || <em style={{ opacity:0.6 }}>(empty)</em>}
