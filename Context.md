@@ -77,6 +77,7 @@ exportUsers เว้น password ว่าง; คอลัมน์ position =
 - ✅ Import/Export template ตรงกับ schema ปัจจุบัน
 - ✅ กรอก Employee ID เองได้ + ปุ่ม Export users
 - ✅ เลขเอกสารออกตอน "กดบันทึก" เท่านั้น (ไม่จองตอนเปิดฟอร์ม → ไม่กระโดด); logic อยู่ใน `app/lib/docNumber.js` (`allocateDocNo` ใช้ตอน insert ใน POST /api/requests, `peekDocNo` ใช้ preview ไม่กินเลข), มี retry กัน PK ชน
+- ✅ เมนู **Security Awareness Training** (Cybersecurity Awareness 2026): ผู้เรียน (ลงทะเบียน prefill จากโปรไฟล์ → pretest → 8 สไลด์ + read-gate → posttest จับเวลา/สลับข้อ ผ่าน 90% → ใบรับรอง PDF) + แดชบอร์ดแอดมิน (role admin/auditor). ไฟล์: `app/components/SecurityAwareness.jsx`, `app/lib/securityCourse.js`, `app/api/training/records`, สไตล์ `ttm-sat-*` ใน globals.css, ตาราง `training_records` (RLS ปิด). ใช้ html2canvas+jspdf (dynamic import) ทำ PDF
 - ✅ login ครั้งแรกบังคับเปลี่ยนรหัส: คอลัมน์ `users.must_change_password` (ตั้ง true ตอน admin create/import/reset, เคลียร์เมื่อเปลี่ยน/รีเซ็ตรหัสเอง); หน้าจอ `ForceChangePassword` ใน Login.jsx, gate ใน page.jsx
 
 ---
@@ -130,6 +131,6 @@ exportUsers เว้น password ว่าง; คอลัมน์ position =
 - ID generation อย่าใช้ `count+1` — ชนกันหลังลบ user → ใช้ `nextUserId` (max suffix)
 - Next.js data cache จับ supabase-js fetch แม้ใน force-dynamic → แก้ด้วย `cache:"no-store"` ใน `createServiceClient`
 - อย่า `npm run build` ขณะ preview dev server รันอยู่ (ใช้ `.next` ร่วมกัน → cache พัง)
-- ตาราง positions: ถ้า CREATE TABLE แต่ไม่ DISABLE RLS จะ error 42501 → `ALTER TABLE positions DISABLE ROW LEVEL SECURITY;`
+- ตารางใหม่ทุกตัว: ถ้า CREATE TABLE แต่ไม่ DISABLE RLS จะถูกบล็อก (select คืน 0 แถว, insert error RLS/42501) → ต้อง `ALTER TABLE <t> DISABLE ROW LEVEL SECURITY;` เสมอ (เจอกับทั้ง positions และ training_records)
 - git push: ต้อง `cd /Users/tharisma/TTMFlow` ก่อน (อย่ารันจาก `~`)
 - เลขเอกสาร: ฟอร์มที่มี counter ใน `form_templates.numbering` (Path A) ลบ request ที่บันทึกแล้ว counter จะ**ไม่ถอยกลับ** (กันเลขซ้ำ — ปกติของ doc numbering) ดังนั้นเวลาเทสต์ create+delete จะกินเลข ต้องรีเซ็ต `numbering.current` กลับเองถ้าไม่อยากให้เลข prod กระโดด
