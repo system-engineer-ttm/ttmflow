@@ -20,6 +20,7 @@ export const i18n = {
       settings: "ตั้งค่าฟอร์ม",
       integrations: "เชื่อมต่อการแจ้งเตือน",
       users: "จัดการผู้ใช้งาน",
+      securityTraining: "อบรม Security Awareness",
       help: "ช่วยเหลือ",
     },
 
@@ -123,6 +124,7 @@ export const i18n = {
       settings: "Form Templates",
       integrations: "Notification Integrations",
       users: "User Management",
+      securityTraining: "Security Awareness Training",
       help: "Help",
     },
 
@@ -419,6 +421,7 @@ export const ROLE_PERMISSIONS = {
   settings:     { requester: false, approver: false, it: false, admin: true, auditor: false, ticketreport: false },
   integrations: { requester: false, approver: false, it: false, admin: true, auditor: false, ticketreport: false },
   users:        { requester: false, approver: false, it: false, admin: true, auditor: false, ticketreport: false },
+  secAware:     { requester: true,  approver: true,  it: true,  admin: true, auditor: true,  ticketreport: true  },
 };
 
 export const REQUESTS = [

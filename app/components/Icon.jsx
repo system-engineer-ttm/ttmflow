@@ -41,6 +41,7 @@ export function Icon({ name, size = 20, stroke = 1.75, className = "", ...rest }
     case "send": return (<svg {...props}><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>);
     case "signature": return (<svg {...props}><path d="M3 18s2-1 4-1 4 3 6 3 4-3 6-3 2 1 2 1"/><path d="M5 14c2-4 4-9 6-9s1 6 3 6 2-3 4-3"/></svg>);
     case "shield-check": return (<svg {...props}><path d="M12 3 4 6v6c0 5 4 8 8 9 4-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>);
+    case "graduation-cap": return (<svg {...props}><path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5"/><path d="M22 10v6"/></svg>);
     case "trending-up": return (<svg {...props}><path d="m3 17 6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>);
     case "circle": return (<svg {...props}><circle cx="12" cy="12" r="9"/></svg>);
     case "circle-dot": return (<svg {...props}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg>);

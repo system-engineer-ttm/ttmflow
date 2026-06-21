@@ -43,7 +43,8 @@
       "Bash(curl -s -o /dev/null -w '%{http_code}' -c /tmp/ttm_test_cookie2.txt -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"testqa999\",\"password\":\"resetpw77\"}')",
       "Bash(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3000/api/auth/reset-password -H 'Content-Type: application/json' -d '{\"token\":\"__CMDSUB_OUTPUT__\",\"newPassword\":\"hack999\"}')",
       "Bash(curl -s http://localhost:3000/api/permissions)",
-      "Bash(npx next *)"
+      "Bash(npx next *)",
+      "WebFetch(domain:claude.ai)"
     ]
   }
 }

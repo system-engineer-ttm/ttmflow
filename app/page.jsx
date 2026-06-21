@@ -19,6 +19,7 @@ import { FlowBuilder } from "./components/FlowBuilder";
 import { Submitted } from "./components/Submitted";
 import { Login, ForceChangePassword } from "./components/Login";
 import { UserManagement } from "./components/UserManagement";
+import { SecurityAwareness } from "./components/SecurityAwareness";
 import { SignatureSetup } from "./components/SignatureSetup";
 import { CaseSummary } from "./components/CaseSummary";
 import { ProfileModal } from "./components/Profile";
@@ -281,6 +282,8 @@ function AppShell() {
     screen = <TemplateBuilder lang={lang} t={tt} back={() => setRouteWithReset("settings")} onSave={saveFormTemplate} />;
   else if (route === "users")
     screen = <UserManagement lang={lang} currentUser={currentUser} />;
+  else if (route === "secAware")
+    screen = <SecurityAwareness lang={lang} role={role} currentUser={currentUser} />;
   else if (route === "caseSummary")
     screen = <CaseSummary lang={lang} />;
   else

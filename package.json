@@ -12,7 +12,9 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
     "bcryptjs": "^3.0.3",
+    "html2canvas": "^1.4.1",
     "jose": "^6.2.3",
+    "jspdf": "^2.5.2",
     "next": "14.2.13",
     "react": "18.3.1",
     "react-dom": "18.3.1",

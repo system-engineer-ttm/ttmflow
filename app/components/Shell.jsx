@@ -49,6 +49,7 @@ export function Sidebar({ lang, route, setRoute, role, t, onLogout, currentUser 
     { id: "settings",     icon: "settings",    label: t.nav.settings },
     { id: "integrations", icon: "external",    label: t.nav.integrations },
     { id: "users",        icon: "users",       label: t.nav.users },
+    { id: "secAware",     icon: "graduation-cap", label: t.nav.securityTraining },
   ];
 
   // Filter nav items using live PERMISSIONS from context — fall back to "allowed" for items not in the matrix
@@ -141,6 +142,7 @@ export function Topbar({ lang, setLang, role, setRole, route, setRoute, t, curre
     approvals: t.nav.approvals, it: t.nav.itQueue, archive: t.nav.archive,
     notif: t.nav.notifications, settings: t.nav.settings, integrations: t.nav.integrations,
     users: t.nav.users,
+    secAware: t.nav.securityTraining,
     fill: t.nav.newRequest,
     templateBuilder: lang === "th" ? "สร้างฟอร์มใหม่" : "Create new form",
     submitted: lang === "th" ? "ส่งสำเร็จ" : "Submitted",
